@@ -1,0 +1,27 @@
+{
+  "name": "markdown-to-pdf-mobile",
+  "version": "1.0.0",
+  "description": "Export notes to PDF on mobile devices.",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "node esbuild.config.mjs production"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/html2canvas": "^1.0.0",
+    "@types/node": "^16.11.6",
+    "builtin-modules": "^5.0.0",
+    "esbuild": "^0.27.2",
+    "obsidian": "^1.7.2",
+    "tslib": "2.4.0",
+    "typescript": "4.7.4"
+  },
+  "dependencies": {
+    "html2canvas": "^1.4.1",
+    "jspdf": "^2.5.1",
+    "jspdf-autotable": "^5.0.2"
+  }
+}
