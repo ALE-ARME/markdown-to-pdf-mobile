@@ -1,7 +1,7 @@
 {
   "name": "markdown-to-pdf-mobile",
-  "version": "1.0.0",
-  "description": "Export notes to PDF on mobile devices.",
+  "version": "1.0.1",
+  "description": "Obsidian mobile plugin to export notes as PDF",
   "main": "main.js",
   "scripts": {
     "dev": "node esbuild.config.mjs",

@@ -9,7 +9,7 @@ A powerful Obsidian plugin specifically designed to export your notes to high-qu
 - **Live Preview Sidebar:** Adjust settings and see an instant preview of your PDF before generating it.
 - **Advanced Formatting:**
   - **Headings & Styling:** Maintains font sizes, bold, italic, underline, and strikethrough.
-  - **Images & Links:** Supports embedded images (![[image.png]]) with custom widths and Wikilinks.
+  - **Images & Captions:** Supports embedded images `![[image.png]]` with custom widths and **automatic captions** using the `![[image.png|Description|dimensions(optional)]]` syntax.
   - **Tables:** Renders Markdown tables beautifully using `jspdf-autotable`.
   - **Callouts & Blockquotes:** Accurately renders Obsidian callouts and blockquotes.
   - **LaTeX Math:** Supports both inline ($...$) and block ($$...$$) math expressions.

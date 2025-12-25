@@ -6,7 +6,7 @@ import html2canvas from 'html2canvas';
 export const PDF_SIDEBAR_VIEW = "pdf-sidebar-view";
 
 interface PdfPluginSettings {
-    theme: 'light' | 'dark';
+    darkMode: boolean;
     pageBreaks: string;
     showLineNumbersInPreview: boolean;
     applyCss: boolean;
@@ -16,7 +16,7 @@ interface PdfPluginSettings {
 }
 
 const DEFAULT_SETTINGS: PdfPluginSettings = {
-    theme: 'light',
+    darkMode: false,
     pageBreaks: '',
     showLineNumbersInPreview: false,
     applyCss: true,
@@ -86,7 +86,7 @@ export default class PdfPlugin extends Plugin {
         // Use visibility hidden and absolute positioning to allow style computation
         tempContainer.style.cssText = "position: absolute; top: -9999px; left: -9999px; visibility: hidden; pointer-events: none;";
         // Add common Obsidian classes to trigger snippet selectors
-        tempContainer.className = `theme-${this.settings.theme} markdown-rendered markdown-preview-view`;
+        tempContainer.className = `${this.settings.darkMode ? 'theme-dark' : 'theme-light'} markdown-rendered markdown-preview-view`;
         
         // Load only ENABLED snippets from appearance.json
         try {
@@ -192,7 +192,7 @@ export default class PdfPlugin extends Plugin {
         const pageWidth = doc.internal.pageSize.width;
         
         // Theme-based colors
-        const isDark = this.settings.theme === 'dark';
+        const isDark = this.settings.darkMode;
         const bgColor = isDark ? [0, 0, 0] : [255, 255, 255];
         const textColor = isDark ? [255, 255, 255] : [0, 0, 0];
 
@@ -330,7 +330,7 @@ export default class PdfPlugin extends Plugin {
                 const hiddenContainer = document.body.createDiv();
                 hiddenContainer.style.position = 'absolute'; hiddenContainer.style.left = '-9999px';
                 hiddenContainer.style.width = '700px'; 
-                hiddenContainer.className = `theme-${this.settings.theme} markdown-rendered markdown-preview-view`;
+                hiddenContainer.className = `${this.settings.darkMode ? 'theme-dark' : 'theme-light'} markdown-rendered markdown-preview-view`;
                 
                 // Use the styles already fetched at the start of generatePdfData
                 let injection = rawSnippetCss || '';
@@ -451,12 +451,21 @@ export default class PdfPlugin extends Plugin {
                                 if (['PNG', 'JPEG', 'WEBP'].includes(format)) {
                                     const props = doc.getImageProperties(new Uint8Array(arrayBuffer));
                                     let imgWidth = props.width * 0.264583;
+                                    let caption = '';
                                     
-                                    // Apply custom width if specified (![[img.png|100]])
-                                    if (linkParts.length > 1) { 
-                                        const lastPart = linkParts[linkParts.length - 1];
-                                        const pW = parseInt(lastPart); 
-                                        if (!isNaN(pW)) imgWidth = pW * 0.264583; 
+                                    // Parse link parts for caption and dimensions
+                                    if (linkParts.length > 1) {
+                                        // Standard Obsidian behavior: if a part is a number, it's width.
+                                        // If not, it's the description/caption.
+                                        for (let j = 1; j < linkParts.length; j++) {
+                                            const p = linkParts[j];
+                                            const pW = parseInt(p);
+                                            if (!isNaN(pW)) {
+                                                imgWidth = pW * 0.264583;
+                                            } else {
+                                                caption = p;
+                                            }
+                                        }
                                     }
                                     
                                     // Move to a new line if there is preceding text
@@ -464,17 +473,70 @@ export default class PdfPlugin extends Plugin {
                                         y += lineHeight + 2; cursorX = textStartX; 
                                     }
                                     
-                                    let availableW = pageWidth - cursorX - margin;
+                                    let availableW = pageWidth - margin * 2;
                                     if (imgWidth > availableW) imgWidth = availableW;
                                     const imgHeight = (props.height * imgWidth) / props.width;
                                     
-                                    if (checkPageBreak(imgHeight + 2)) cursorX = textStartX;
+                                    // Spacing and sizes for caption (matching user request)
+                                    const captionFontSize = 11;
+                                    const captionPadding = 3;
+                                    const imagePadding = 1.5; // Small padding around the image (approx 5-6 pixels)
+                                    
+                                    // Calculate wrap if caption exists
+                                    let wrappedCaption: string[] = [];
+                                    let captionBoxHeight = 0;
+                                    const lineStep = captionFontSize * 0.45;
+                                    
+                                    if (caption) {
+                                        const maxCaptionWidth = imgWidth - 4;
+                                        wrappedCaption = doc.splitTextToSize(caption, maxCaptionWidth);
+                                        captionBoxHeight = (wrappedCaption.length * lineStep) + captionPadding;
+                                    }
+
+                                    const totalBoxHeight = imgHeight + (caption ? captionBoxHeight + imagePadding : imagePadding * 2);
+                                    const totalNeededHeight = totalBoxHeight + 5;
+
+                                    if (checkPageBreak(totalNeededHeight)) cursorX = textStartX;
                                     renderLineNumber(y + (imgHeight / 2));
                                     
-                                    doc.addImage(new Uint8Array(arrayBuffer), format, cursorX, y, imgWidth, imgHeight);
+                                    // Always respect indentation level, stop auto-centering
+                                    const xPos = textStartX + imagePadding;
                                     
-                                    // Always move to a new line after an image
-                                    y += imgHeight + lineHeight; cursorX = textStartX;
+                                    const boxX = xPos - imagePadding;
+                                    const boxY = y - imagePadding;
+                                    const boxWidth = imgWidth + (imagePadding * 2);
+
+                                    // Draw gray background box for BOTH image and caption
+                                    doc.saveGraphicsState();
+                                    doc.setFillColor(isDark ? 40 : 240, isDark ? 40 : 240, isDark ? 40 : 240);
+                                    doc.rect(boxX, boxY, boxWidth, totalBoxHeight, 'F');
+                                    doc.restoreGraphicsState();
+
+                                    // Draw the image
+                                    doc.addImage(new Uint8Array(arrayBuffer), format, xPos, y, imgWidth, imgHeight);
+                                    
+                                    if (caption) {
+                                        doc.saveGraphicsState();
+                                        doc.setFont(activeFont, "normal");
+                                        doc.setFontSize(captionFontSize);
+                                        
+                                        const textYBase = y + imgHeight + (imagePadding / 2);
+                                        
+                                        // Draw pure black/white text lines centered relative to the box/image
+                                        doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+                                        let currentLineY = textYBase + (captionFontSize * 0.35);
+                                        const centerX = boxX + (boxWidth / 2);
+                                        for (const line of wrappedCaption) {
+                                            doc.text(line, centerX, currentLineY, { align: 'center' });
+                                            currentLineY += lineStep;
+                                        }
+                                        
+                                        doc.restoreGraphicsState();
+                                        y += totalBoxHeight + 4;
+                                    } else {
+                                        y += totalBoxHeight + 2; 
+                                    }
+                                    cursorX = textStartX;
                                 }
                             } catch (e) {}
                         }
@@ -674,13 +736,6 @@ class PdfSidebarView extends ItemView {
 
     async display() {
         const container = this.contentEl; container.empty();
-        container.createEl("h2", { text: "PDF Settings" });
-        new Setting(container).setName("Theme").setDesc("Light or Dark mode for PDF").addDropdown(d => d.addOption("light", "Light").addOption("dark", "Dark").setValue(this.plugin.settings.theme).onChange(async v => { 
-            this.plugin.settings.theme = v as 'light' | 'dark'; 
-            this.plugin.clearStyleCache();
-            await this.plugin.saveSettings(); 
-            this.triggerPreview(); 
-        }));
         
         new Setting(container).setName("Font Family").setDesc("Choose a font (built-in or custom .ttf)").addDropdown(d => {
             d.addOption("helvetica", "Helvetica (Sans-serif)")
@@ -709,30 +764,47 @@ class PdfSidebarView extends ItemView {
             });
         }
 
-        new Setting(container).setName("Page Breaks").setDesc("Comma separated line numbers").addTextArea(t => {
-            this.pageBreakArea = t;
-            t.setPlaceholder("e.g. 10, 25").setValue(this.plugin.settings.pageBreaks).onChange(async v => { 
-                this.plugin.settings.pageBreaks = v; 
-                await this.plugin.saveSettings(); 
-                this.triggerPreview(); 
-            });
-        });
-        new Setting(container).setName("Show Line Numbers (Preview)").setDesc("Show line numbers in the sidebar preview").addToggle(t => t.setValue(this.plugin.settings.showLineNumbersInPreview).onChange(async v => { this.plugin.settings.showLineNumbersInPreview = v; await this.plugin.saveSettings(); this.triggerPreview(); }));
+        new Setting(container).setName("Dark Mode").setDesc("Use dark theme for PDF").addToggle(t => t.setValue(this.plugin.settings.darkMode).onChange(async v => { 
+            this.plugin.settings.darkMode = v; 
+            this.plugin.clearStyleCache();
+            await this.plugin.saveSettings(); 
+            this.triggerPreview(); 
+        }));
+
         new Setting(container).setName("Apply CSS Snippets").setDesc("Try to apply colors from your Obsidian CSS snippets").addToggle(t => t.setValue(this.plugin.settings.applyCss).onChange(async v => { 
             this.plugin.settings.applyCss = v; 
             this.plugin.clearStyleCache();
             await this.plugin.saveSettings(); 
             this.triggerPreview(); 
         }));
+
         new Setting(container).setName("Show Note Title").setDesc("Include the note title at the top of the PDF").addToggle(t => t.setValue(this.plugin.settings.showTitle).onChange(async v => { this.plugin.settings.showTitle = v; await this.plugin.saveSettings(); this.triggerPreview(); }));
-        new Setting(container).setName("Generate PDF").addButton(b => b.setButtonText("Generate").setCta().onClick(() => this.plugin.exportToPdf()));
-        container.createEl("p", { text: "Tip: Swipe left to right to close sidebar.", cls: "setting-item-description" });
-        container.createEl("h3", { text: "Preview" });
+
+        new Setting(container).setName("Show Line Numbers (Preview)").setDesc("Show line numbers in the sidebar preview").addToggle(t => t.setValue(this.plugin.settings.showLineNumbersInPreview).onChange(async v => { this.plugin.settings.showLineNumbersInPreview = v; await this.plugin.saveSettings(); this.triggerPreview(); }));
+
+        new Setting(container).setName("Page Breaks").setDesc("Comma separated line numbers").addTextArea(t => {
+            this.pageBreakArea = t;
+            t.inputEl.style.width = '100%';
+            t.inputEl.rows = 2;
+            t.setPlaceholder("e.g. 10, 25").setValue(this.plugin.settings.pageBreaks).onChange(async v => { 
+                this.plugin.settings.pageBreaks = v; 
+                await this.plugin.saveSettings(); 
+                this.triggerPreview(); 
+            });
+        });
+
+        container.createDiv().style.borderTop = "1px solid var(--background-modifier-border)";
+        container.createEl("h3", { text: "Preview" }).style.marginTop = "15px";
         this.previewContainer = container.createEl("div", { cls: "pdf-preview-container" });
         this.previewContainer.style.width = "100%"; this.previewContainer.style.height = "500px"; this.previewContainer.style.overflow = "auto"; this.previewContainer.style.border = "1px solid var(--background-modifier-border)";
         this.zoomWrapper = this.previewContainer.createEl("div");
         this.zoomWrapper.style.display = "flex"; this.zoomWrapper.style.flexDirection = "column"; this.zoomWrapper.style.gap = "10px"; this.zoomWrapper.style.padding = "10px 10px 50px 25px"; this.zoomWrapper.style.width = "100%";
         
+        container.createDiv().style.cssText = "border-top: 1px solid var(--background-modifier-border); margin-top: 15px;";
+        
+        // Generate PDF button moved below preview
+        new Setting(container).setName("Generate PDF").addButton(b => b.setButtonText("Generate").setCta().onClick(() => this.plugin.exportToPdf()));
+
         this.previewContainer.addEventListener('touchstart', (e) => { if (e.touches.length === 2) this.lastDist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY); }, { passive: false });
         this.previewContainer.addEventListener('touchmove', (e) => {
             if (e.touches.length === 2) {
