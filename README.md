@@ -212,4 +212,4 @@ npm run build
 This will generate the `main.js` file required (alongside `manifest.json` and `styles.css`) for Obsidian to load the plugin.
 
 ## Disclaimer
-The plugin was entirely made by Gemini 3 Pro and Flash models
+The plugin was entirely made by Gemini models
