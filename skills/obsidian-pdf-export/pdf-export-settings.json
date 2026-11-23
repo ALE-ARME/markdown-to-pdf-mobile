@@ -1,0 +1,38 @@
+{
+  "_comment": "Standalone PDF export settings for the obsidian-pdf-export AI Agent skill. Kept completely separate from Obsidian plugin data.json. Agents MUST read this file before generating PDFs and update it whenever the user changes preferences.",
+  "cli": {
+    "scriptPath": "obsidian-pdf-cli.mjs",
+    "vaultPath": "",
+    "vaultName": "",
+    "defaultOutputDir": "",
+    "openResult": false,
+    "timeoutSeconds": 600,
+    "pollMs": 750
+  },
+  "options": {
+    "pdfTheme": "css",
+    "pageSize": "a4",
+    "pageOrientation": "portrait",
+    "autoLandscapeWidePages": true,
+    "marginPreset": "normal",
+    "customMarginMm": 15,
+    "contentScale": 100,
+    "fontFamily": "obsidian",
+    "customFontPath": "",
+    "showTitle": true,
+    "showFrontmatter": false,
+    "showHeader": false,
+    "headerTemplate": "{title}",
+    "headerDateFormat": "YYYY-MM-DD",
+    "headerTimeFormat": "HH:mm",
+    "showFootnote": false,
+    "footnoteTemplate": "{title} - {date} {time}",
+    "footnoteDateFormat": "YYYY-MM-DD",
+    "footnoteTimeFormat": "HH:mm",
+    "optimizeImages": true,
+    "includeBookmarks": true,
+    "includeTocPage": false,
+    "bookmarkHeadingLevels": [1, 2, 3, 4, 5, 6],
+    "enableClickableLinks": true
+  }
+}

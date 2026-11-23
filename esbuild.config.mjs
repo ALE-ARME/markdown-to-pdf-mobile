@@ -1,7 +1,8 @@
 import esbuild from "esbuild";
 import process from "process";
-import builtins from "builtin-modules";
+import { builtinModules } from "node:module";
 import fs from "fs";
+import http from "http";
 import path from "path";
 
 const banner =
@@ -16,6 +17,9 @@ const prod = (process.argv[2] === "production");
 const context = await esbuild.context({
 	banner: {
 		js: banner,
+	},
+	footer: {
+		js: 'if (typeof exports === "object" && exports !== null && typeof module === "object" && module !== null && module.exports && module.exports.default && !exports.default) { exports.default = module.exports.default; }',
 	},
 	entryPoints: ["./main.ts"],
 	bundle: true,
@@ -43,11 +47,12 @@ const context = await esbuild.context({
 		"@codemirror/text",
 		"@codemirror/tooltip",
 		"@codemirror/view",
-		...builtins],
+		...builtinModules],
 	format: "cjs",
 	target: "es2018",
 	logLevel: "info",
-	sourcemap: prod ? false : "inline",
+	sourcemap: false,
+	minify: true,
 	treeShaking: true,
 	outfile: "main.js",
 });
@@ -57,4 +62,99 @@ if (prod) {
 	process.exit(0);
 } else {
 	await context.watch();
+
+	const port = Number(process.env.PORT) || 3000;
+	const downloadableFiles = {
+		"/main.js": { file: "main.js", type: "application/javascript; charset=utf-8" },
+		"/manifest.json": { file: "manifest.json", type: "application/json; charset=utf-8" },
+		"/styles.css": { file: "styles.css", type: "text/css; charset=utf-8" },
+		"/obsidian-pdf-cli.mjs": { file: "obsidian-pdf-cli.mjs", type: "application/javascript; charset=utf-8" },
+	};
+
+	const escapeHtml = (s) =>
+		String(s ?? "")
+			.replace(/&/g, "&amp;")
+			.replace(/</g, "&lt;")
+			.replace(/>/g, "&gt;")
+			.replace(/"/g, "&quot;");
+
+	const server = http.createServer((req, res) => {
+		const urlPath = (req.url || "/").split("?")[0];
+
+		if (Object.prototype.hasOwnProperty.call(downloadableFiles, urlPath)) {
+			const entry = downloadableFiles[urlPath];
+			const fullPath = path.resolve(entry.file);
+			if (fs.existsSync(fullPath)) {
+				res.writeHead(200, {
+					"Content-Type": entry.type,
+					"Cache-Control": "no-store",
+				});
+				fs.createReadStream(fullPath).pipe(res);
+				return;
+			}
+			res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
+			res.end("Not found");
+			return;
+		}
+
+		let manifest = { name: "Markdown to PDF Mobile", version: "1.0.0", description: "Obsidian plugin" };
+		try {
+			manifest = JSON.parse(fs.readFileSync(path.resolve("manifest.json"), "utf8"));
+		} catch {
+			// use fallback metadata
+		}
+
+		let bundleInfo = "Building main.js...";
+		try {
+			const stat = fs.statSync(path.resolve("main.js"));
+			const kb = (stat.size / 1024).toFixed(1);
+			bundleInfo = `main.js — ${kb} KB (updated ${stat.mtime.toISOString()})`;
+		} catch {
+			// main.js not yet written
+		}
+
+		const html = `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>${escapeHtml(manifest.name)}</title>
+<style>
+  :root { color-scheme: dark light; }
+  body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; padding: 32px 20px; background: #111214; color: #eceef2; }
+  main { max-width: 640px; margin: 0 auto; background: #1b1d22; border: 1px solid #2d313a; border-radius: 10px; padding: 24px; }
+  h1 { margin: 0 0 6px; font-size: 20px; }
+  .meta { color: #9aa3b2; font-size: 13px; margin: 0 0 18px; }
+  .box { background: #14161a; border: 1px solid #292d36; border-radius: 8px; padding: 14px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; margin-bottom: 18px; }
+  .links { display: flex; flex-wrap: wrap; gap: 10px; }
+  a { color: #7cb4ff; text-decoration: none; border: 1px solid #30425d; border-radius: 6px; padding: 7px 12px; font-size: 13px; }
+  a:hover { background: #223047; }
+</style>
+</head>
+<body>
+  <main>
+    <h1>${escapeHtml(manifest.name)} <span style="font-weight:400;color:#9aa3b2;">v${escapeHtml(manifest.version)}</span></h1>
+    <p class="meta">${escapeHtml(manifest.description)}</p>
+    <div class="box">${escapeHtml(bundleInfo)}</div>
+    <div class="links">
+      <a href="/main.js" download="main.js">Download main.js</a>
+      <a href="/manifest.json" download="manifest.json">Download manifest.json</a>
+      <a href="/styles.css" download="styles.css">Download styles.css</a>
+      <a href="/obsidian-pdf-cli.mjs" download="obsidian-pdf-cli.mjs">Download CLI wrapper</a>
+    </div>
+  </main>
+</body>
+</html>`;
+
+		res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" });
+		res.end(html);
+	});
+
+	server.on("error", (err) => {
+		console.error("Dev preview server error:", err);
+	});
+
+	server.listen(port, "0.0.0.0", () => {
+		console.log(`Obsidian plugin dev watcher & preview server listening on http://0.0.0.0:${port}`);
+	});
 }

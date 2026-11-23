@@ -1,8 +1,10 @@
 node_modules/
-main.js
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 .obsidian/
 .DS_Store
+main.js
+bun.lock
+

@@ -1,6 +1,6 @@
 {
   "name": "markdown-to-pdf-mobile",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Obsidian mobile plugin to export notes as PDF",
   "main": "main.js",
   "scripts": {
@@ -8,12 +8,16 @@
     "build": "node esbuild.config.mjs production"
   },
   "keywords": [],
-  "author": "",
+  "author": "ALE-ARME",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ALE-ARME/markdown-to-pdf-mobile.git"
+  },
+  "homepage": "https://github.com/ALE-ARME/markdown-to-pdf-mobile#readme",
   "license": "MIT",
   "devDependencies": {
     "@types/html2canvas": "^1.0.0",
     "@types/node": "^16.11.6",
-    "builtin-modules": "^5.0.0",
     "esbuild": "^0.27.2",
     "obsidian": "^1.7.2",
     "tslib": "2.4.0",
@@ -21,7 +25,6 @@
   },
   "dependencies": {
     "html2canvas": "^1.4.1",
-    "jspdf": "^2.5.1",
-    "jspdf-autotable": "^5.0.2"
+    "jspdf": "^2.5.1"
   }
 }

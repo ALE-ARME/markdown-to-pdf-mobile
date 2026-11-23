@@ -1,0 +1,1828 @@
+/* ==========================================================================
+   Markdown to PDF Mobile — Plugin Styles
+   Loaded automatically by Obsidian from styles.css
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. Hidden PDF Export Render Root & Theme Overrides
+   -------------------------------------------------------------------------- */
+
+.pdf-export-root {
+    --pdf-content-width: 700px;
+    --pdf-landscape-width: 700px;
+    width: var(--pdf-content-width);
+    max-width: var(--pdf-content-width);
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    color: var(--text-normal, #000000);
+}
+
+.pdf-export-root.pdf-export-hidden-root {
+    position: fixed;
+    left: 0;
+    top: 0;
+    opacity: 0;
+    pointer-events: none;
+    z-index: -9999;
+}
+
+.pdf-export-root.pdf-theme-css.pdf-mode-dark {
+    background-color: var(--background-primary, #000000);
+    color: var(--text-normal, #ffffff);
+}
+
+.pdf-export-root.pdf-theme-css.pdf-mode-light {
+    background-color: var(--background-primary, #ffffff);
+    color: var(--text-normal, #000000);
+}
+
+.pdf-export-root.pdf-theme-dark {
+    --background-primary: #000000;
+    background-color: #000000;
+    color: var(--text-normal, #ffffff);
+}
+
+.pdf-export-root.pdf-theme-light {
+    --background-primary: #ffffff;
+    background-color: #ffffff;
+    color: var(--text-normal, #000000);
+}
+
+.pdf-export-root.pdf-mode-dark .markdown-preview-view,
+.pdf-export-root.pdf-mode-dark .markdown-rendered {
+    color: var(--text-normal, #ffffff);
+}
+
+.pdf-export-root.pdf-mode-light .markdown-preview-view,
+.pdf-export-root.pdf-mode-light .markdown-rendered {
+    color: var(--text-normal, #000000);
+}
+
+.pdf-export-root.pdf-contrast-dark {
+    --background-primary-alt: #0f0f0f;
+    --background-secondary: #141414;
+    --background-secondary-alt: #1f1f1f;
+    --background-modifier-border: #333333;
+    --background-modifier-border-hover: #444444;
+    --text-normal: #ffffff;
+    --text-muted: #b3b3b3;
+    --text-faint: #787878;
+    --code-background: #18181b;
+    --code-normal: #f4f4f5;
+    --hr-color: #3a3a3a;
+}
+
+.pdf-export-root.pdf-contrast-light {
+    --background-primary-alt: #f8f9fa;
+    --background-secondary: #f3f4f6;
+    --background-secondary-alt: #e5e7eb;
+    --background-modifier-border: #d4d4d8;
+    --background-modifier-border-hover: #a1a1aa;
+    --text-normal: #18181b;
+    --text-muted: #52525b;
+    --text-faint: #71717a;
+    --code-background: #f4f4f5;
+    --code-normal: #18181b;
+    --hr-color: #d4d4d8;
+}
+
+.pdf-export-root.pdf-custom-font,
+.pdf-export-root.pdf-custom-font .markdown-preview-view,
+.pdf-export-root.pdf-custom-font .markdown-rendered,
+.pdf-export-root.pdf-custom-font .inline-title {
+    --font-text: var(--pdf-custom-font-family) !important;
+    --font-interface: var(--pdf-custom-font-family) !important;
+    font-family: var(--pdf-custom-font-family) !important;
+}
+
+:where(.pdf-export-root .pdf-export-title) {
+    font-size: var(--inline-title-size, 2em);
+    font-weight: var(--inline-title-weight, 700);
+    line-height: var(--inline-title-line-height, 1.2);
+    color: var(--inline-title-color, var(--text-normal));
+    margin-top: 0;
+    margin-bottom: 0;
+    text-align: center;
+    word-break: break-word;
+}
+
+.pdf-export-root .mod-header {
+    margin-top: 0 !important;
+    margin-bottom: 28px !important;
+}
+
+.pdf-export-root .mod-header .pdf-export-title {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+.pdf-export-root .pdf-frontmatter-card {
+    margin: 0 0 18px 0 !important;
+    padding: 10px 14px !important;
+    border: 1px solid rgba(0, 0, 0, 0.14) !important;
+    border-radius: 6px !important;
+    background-color: rgba(0, 0, 0, 0.025) !important;
+    font-size: 0.88em !important;
+    line-height: 1.45 !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+}
+
+.pdf-export-root.pdf-mode-dark .pdf-frontmatter-card {
+    border-color: rgba(255, 255, 255, 0.16) !important;
+    background-color: rgba(255, 255, 255, 0.04) !important;
+}
+
+.pdf-export-root .pdf-frontmatter-title {
+    font-size: 0.82em !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+    color: rgba(0, 0, 0, 0.55) !important;
+    margin: 0 0 8px 0 !important;
+    padding-bottom: 5px !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.09) !important;
+}
+
+.pdf-export-root.pdf-mode-dark .pdf-frontmatter-title {
+    color: rgba(255, 255, 255, 0.65) !important;
+    border-bottom-color: rgba(255, 255, 255, 0.10) !important;
+}
+
+.pdf-export-root .pdf-frontmatter-grid {
+    display: table !important;
+    width: 100% !important;
+    border-collapse: collapse !important;
+}
+
+.pdf-export-root .pdf-frontmatter-row {
+    display: table-row !important;
+}
+
+.pdf-export-root .pdf-frontmatter-key {
+    display: table-cell !important;
+    width: 28% !important;
+    padding: 3px 10px 3px 0 !important;
+    font-weight: 600 !important;
+    color: rgba(0, 0, 0, 0.65) !important;
+    vertical-align: top !important;
+    word-break: normal !important;
+    overflow-wrap: break-word !important;
+}
+
+.pdf-export-root.pdf-mode-dark .pdf-frontmatter-key {
+    color: rgba(255, 255, 255, 0.72) !important;
+}
+
+.pdf-export-root .pdf-frontmatter-val {
+    display: table-cell !important;
+    padding: 3px 0 !important;
+    color: var(--text-normal, #1f1f1f) !important;
+    vertical-align: top !important;
+    word-break: normal !important;
+    overflow-wrap: break-word !important;
+}
+
+.pdf-export-root.pdf-mode-dark .pdf-frontmatter-val {
+    color: var(--text-normal, #e6e6e6) !important;
+}
+
+.pdf-export-root .pdf-frontmatter-pill {
+    display: inline-block !important;
+    box-sizing: border-box !important;
+    max-width: 100% !important;
+    padding: 1px 7px !important;
+    margin: 1px 5px 2px 0 !important;
+    border-radius: 10px !important;
+    font-size: 0.92em !important;
+    word-break: normal !important;
+    overflow-wrap: break-word !important;
+    background-color: rgba(0, 0, 0, 0.07) !important;
+    border: 1px solid rgba(0, 0, 0, 0.10) !important;
+}
+
+.pdf-export-root.pdf-mode-dark .pdf-frontmatter-pill {
+    background-color: rgba(255, 255, 255, 0.10) !important;
+    border-color: rgba(255, 255, 255, 0.14) !important;
+}
+
+.pdf-export-root > .pdf-batch-wrapper {
+    display: block !important;
+    width: var(--pdf-content-width) !important;
+    max-width: var(--pdf-content-width) !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+}
+
+.pdf-export-root.pdf-root-landscape {
+    width: var(--pdf-landscape-width);
+    max-width: var(--pdf-landscape-width);
+}
+
+.pdf-export-root.pdf-root-landscape > .pdf-batch-wrapper {
+    width: var(--pdf-landscape-width) !important;
+    max-width: var(--pdf-landscape-width) !important;
+}
+
+.pdf-export-root > .workspace-leaf,
+.pdf-export-root > .workspace-leaf > .workspace-leaf-content,
+.pdf-export-root > .workspace-leaf > .workspace-leaf-content > .view-content,
+.pdf-export-root > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view,
+.pdf-export-root > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host,
+.pdf-export-root > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .pdf-reading-embed-body,
+.pdf-export-root > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .markdown-embed-content,
+.pdf-export-root > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .markdown-preview-view:not(.pdf-expand-reading-height),
+.pdf-export-root > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .pdf-reading-embed-body > .markdown-preview-view:not(.pdf-expand-reading-height),
+.pdf-export-root > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .markdown-embed-content > .markdown-preview-view:not(.pdf-expand-reading-height),
+.pdf-export-root > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .markdown-preview-view > .markdown-preview-sizer,
+.pdf-export-root > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .pdf-reading-embed-body > .markdown-preview-view > .markdown-preview-sizer,
+.pdf-export-root > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .markdown-embed-content > .markdown-preview-view > .markdown-preview-sizer,
+.pdf-export-root > .workspace-leaf-content,
+.pdf-export-root > .workspace-leaf-content > .view-content,
+.pdf-export-root > .workspace-leaf-content > .view-content > .markdown-reading-view,
+.pdf-export-root > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host,
+.pdf-export-root > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .pdf-reading-embed-body,
+.pdf-export-root > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .markdown-embed-content,
+.pdf-export-root > .workspace-leaf-content > .view-content > .markdown-reading-view > .markdown-preview-view:not(.pdf-expand-reading-height),
+.pdf-export-root > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .pdf-reading-embed-body > .markdown-preview-view:not(.pdf-expand-reading-height),
+.pdf-export-root > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .markdown-embed-content > .markdown-preview-view:not(.pdf-expand-reading-height),
+.pdf-export-root > .workspace-leaf-content > .view-content > .markdown-reading-view > .markdown-preview-view > .markdown-preview-sizer,
+.pdf-export-root > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .pdf-reading-embed-body > .markdown-preview-view > .markdown-preview-sizer,
+.pdf-export-root > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .markdown-embed-content > .markdown-preview-view > .markdown-preview-sizer,
+.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf,
+.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf > .workspace-leaf-content,
+.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf > .workspace-leaf-content > .view-content,
+.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view,
+.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host,
+.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .pdf-reading-embed-body,
+.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .markdown-embed-content,
+.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .markdown-preview-view:not(.pdf-expand-reading-height),
+.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .pdf-reading-embed-body > .markdown-preview-view:not(.pdf-expand-reading-height),
+.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .markdown-embed-content > .markdown-preview-view:not(.pdf-expand-reading-height),
+.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .markdown-preview-view > .markdown-preview-sizer,
+.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .pdf-reading-embed-body > .markdown-preview-view > .markdown-preview-sizer,
+.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .markdown-embed-content > .markdown-preview-view > .markdown-preview-sizer,
+.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf-content,
+.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf-content > .view-content,
+.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf-content > .view-content > .markdown-reading-view,
+.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host,
+.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .pdf-reading-embed-body,
+.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .markdown-embed-content,
+.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf-content > .view-content > .markdown-reading-view > .markdown-preview-view:not(.pdf-expand-reading-height),
+.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .pdf-reading-embed-body > .markdown-preview-view:not(.pdf-expand-reading-height),
+.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .markdown-embed-content > .markdown-preview-view:not(.pdf-expand-reading-height),
+.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf-content > .view-content > .markdown-reading-view > .markdown-preview-view > .markdown-preview-sizer,
+.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .pdf-reading-embed-body > .markdown-preview-view > .markdown-preview-sizer,
+.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .markdown-embed-content > .markdown-preview-view > .markdown-preview-sizer {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: 0;
+    height: auto !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    border: none !important;
+    box-shadow: none !important;
+    --file-line-width: 100% !important;
+    --file-margins: 0px !important;
+    background-color: transparent !important;
+    color: inherit;
+}
+
+.pdf-export-root > .workspace-leaf,
+.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf {
+    display: block !important;
+    position: relative !important;
+    contain: none !important;
+}
+
+.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf {
+    margin-bottom: 12px !important;
+}
+
+.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf:last-child {
+    margin-bottom: 0 !important;
+}
+
+.pdf-export-root .markdown-preview-sizer {
+    display: flow-root;
+}
+
+.pdf-export-root .view-header,
+.pdf-export-root .workspace-leaf-resize-handle,
+.pdf-export-root .markdown-source-view,
+.pdf-export-root .markdown-preview-pusher {
+    display: none !important;
+}
+
+.pdf-export-root .copy-code-button,
+.pdf-export-root .edit-block-button,
+.pdf-export-root .collapse-indicator,
+.pdf-export-root .heading-collapse-indicator,
+.pdf-export-root .list-collapse-indicator,
+.pdf-export-root .markdown-embed-link,
+.pdf-export-root .file-embed-link,
+.pdf-export-root .metadata-container,
+.pdf-export-root .frontmatter,
+.pdf-export-root .mermaid button,
+.pdf-export-root .block-language-mermaid button,
+.pdf-export-root .mermaid .clickable-icon,
+.pdf-export-root .block-language-mermaid .clickable-icon,
+.pdf-export-root [class*="mermaid"] button,
+.pdf-export-root [class*="diagram-zoom"] button,
+.pdf-export-root .diagram-zoom-drag-controls,
+.pdf-export-root .dzd-controls,
+.pdf-export-root .dzd-toolbar,
+.pdf-export-root .mermaid-toolbar,
+.pdf-export-root .mermaid-controls,
+.pdf-export-root .mermaid-zoom-buttons,
+.pdf-export-root .zoom-controls,
+.pdf-export-root .pan-zoom-controls {
+    display: none !important;
+}
+
+.pdf-export-root pre,
+.pdf-export-root code {
+    white-space: pre-wrap !important;
+    word-break: break-word !important;
+    overflow-wrap: anywhere !important;
+    max-height: none !important;
+    overflow: visible !important;
+}
+
+.pdf-export-root pre {
+    box-sizing: border-box !important;
+    max-width: 100% !important;
+}
+
+:where(.pdf-export-root pre) {
+    padding: 12px 14px;
+    border-radius: 6px;
+}
+
+.pdf-export-root,
+.pdf-export-root * {
+    scrollbar-width: none !important;
+}
+
+.pdf-export-root::-webkit-scrollbar,
+.pdf-export-root *::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+}
+
+.pdf-export-root table,
+.pdf-export-root .el-table,
+.pdf-export-root .table-wrapper,
+.pdf-export-root .math-block,
+.pdf-export-root mjx-container {
+    overflow-x: visible !important;
+    overflow-y: visible !important;
+}
+
+:where(.pdf-export-root table) {
+    width: auto;
+    max-width: 100%;
+    border-collapse: collapse;
+}
+
+:where(.pdf-export-root th, .pdf-export-root td) {
+    word-break: normal;
+    overflow-wrap: break-word;
+}
+
+:where(.pdf-export-root th:not([align]), .pdf-export-root th[align=""]) {
+    text-align: start;
+}
+
+.pdf-export-root .callout,
+.pdf-export-root blockquote,
+.pdf-export-root .markdown-embed,
+.pdf-export-root .markdown-embed-content {
+    max-height: none !important;
+    overflow: visible !important;
+}
+
+:where(.pdf-export-root img) {
+    max-width: 100%;
+    height: auto;
+}
+
+:where(.pdf-export-root .internal-embed.image-embed > img) {
+    display: block;
+}
+
+:where(.pdf-export-root .internal-embed.image-embed) {
+    max-width: 100%;
+}
+
+.pdf-export-root .pdf-image-slot {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+}
+
+.pdf-export-root .pdf-image-slot.pdf-image-slot-inline {
+    display: inline-block;
+    vertical-align: middle;
+    margin: 0;
+}
+
+.pdf-export-root .pdf-image-slot.pdf-image-slot-block {
+    max-width: 100%;
+    display: block;
+    margin: 0;
+}
+
+.pdf-export-root .pdf-tall-fitted-svg {
+    max-width: 100% !important;
+    display: block !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+}
+
+.pdf-export-root .pdf-tall-fitted-media {
+    display: block;
+    margin: 0 auto;
+}
+
+.pdf-export-root .pdf-table-measure {
+    width: max-content !important;
+    max-width: none !important;
+    table-layout: auto !important;
+}
+
+.pdf-export-root .pdf-img-clamped {
+    max-width: 100%;
+}
+
+.pdf-capture-visible {
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+.pdf-capture-root-clean {
+    background-image: none !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+}
+
+.pdf-vector-checkbox {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    flex-shrink: 0;
+}
+
+.pdf-vector-checkbox-unchecked {
+    border-width: 1.5px;
+    border-style: solid;
+}
+
+.pdf-vector-checkbox-svg {
+    display: block;
+}
+
+.pdf-no-list-style {
+    list-style: none;
+}
+
+.pdf-export-root .pdf-expand-reading-height,
+.pdf-export-root .markdown-preview-view.pdf-expand-reading-height {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 100000px !important;
+    min-height: 100000px !important;
+    max-height: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow-y: auto !important;
+    overflow-x: visible !important;
+    border: none !important;
+    box-shadow: none !important;
+    --file-line-width: 100% !important;
+    --file-margins: 0px !important;
+    background-color: transparent !important;
+}
+
+.pdf-export-root.pdf-disable-links a:not(.tag),
+.pdf-export-root.pdf-disable-links a.external-link,
+.pdf-export-root.pdf-disable-links a.internal-link,
+.pdf-export-root.pdf-disable-links a.footnote-link {
+    color: inherit !important;
+    text-decoration: none !important;
+    border-bottom: none !important;
+    background-image: none !important;
+    padding-right: 0 !important;
+    cursor: default !important;
+}
+
+.pdf-export-root.pdf-disable-links a.external-link::after,
+.pdf-export-root.pdf-disable-links a.external-link::before {
+    display: none !important;
+    content: none !important;
+}
+
+.pdf-hidden {
+    display: none !important;
+}
+
+/* --------------------------------------------------------------------------
+   2. Path Autocomplete Dropdown
+   -------------------------------------------------------------------------- */
+
+.pdf-path-suggest-list {
+    display: none;
+    width: 100%;
+    max-height: 155px;
+    overflow-y: auto;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    background-color: var(--background-primary);
+    margin-top: 2px;
+    margin-bottom: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+}
+
+.pdf-path-suggest-list.is-visible {
+    display: block;
+}
+
+.pdf-path-suggest-hint {
+    padding: 7px 10px;
+    font-size: 12px;
+    line-height: 1.35;
+    color: var(--text-muted);
+    font-style: italic;
+    word-break: break-word;
+}
+
+.pdf-path-suggest-row {
+    padding: 7px 10px;
+    font-size: 12px;
+    line-height: 1.3;
+    cursor: pointer;
+    word-break: break-word;
+    color: var(--text-normal);
+    border-bottom: 1px solid var(--background-modifier-border);
+    background-color: transparent;
+}
+
+.pdf-path-suggest-row:last-child {
+    border-bottom: none;
+}
+
+.pdf-path-suggest-row.is-active {
+    background-color: var(--background-modifier-hover);
+}
+
+/* --------------------------------------------------------------------------
+   3. Batch Progress Notice
+   -------------------------------------------------------------------------- */
+
+.pdf-batch-notice-root {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 240px;
+    max-width: 340px;
+}
+
+.pdf-batch-notice-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.pdf-batch-notice-title {
+    font-size: 13px;
+    line-height: 1.25;
+}
+
+.pdf-batch-notice-timer {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+}
+
+.pdf-batch-notice-track {
+    width: 100%;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--background-modifier-border);
+    overflow: hidden;
+}
+
+.pdf-batch-notice-fill {
+    width: 0%;
+    height: 100%;
+    background: var(--interactive-accent);
+    transition: width 150ms ease;
+}
+
+.pdf-batch-notice-detail {
+    font-size: 12px;
+    color: var(--text-normal);
+    word-break: break-word;
+    line-height: 1.3;
+}
+
+.pdf-batch-notice-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 2px;
+}
+
+.pdf-batch-notice-substatus {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.pdf-batch-notice-stop-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.pdf-batch-notice-icon {
+    display: inline-flex;
+    align-items: center;
+}
+
+.pdf-batch-notice-queue-row {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    padding-top: 5px;
+    border-top: 1px solid var(--background-modifier-border);
+}
+
+.pdf-batch-notice-queue-row.is-visible {
+    display: flex;
+}
+
+.pdf-batch-notice-queue-text {
+    font-size: 11px;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+}
+
+.pdf-batch-notice-clear-btn {
+    padding: 1px 7px;
+    font-size: 11px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+/* --------------------------------------------------------------------------
+   4. Shared Elevated Category Cards (Global Settings Tab & PDF Sidebar)
+   -------------------------------------------------------------------------- */
+
+.pdf-settings-card {
+    border-radius: 12px;
+    margin-bottom: 16px;
+    overflow: hidden;
+    box-sizing: border-box;
+    background-color: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.theme-dark .pdf-settings-card {
+    background-color: var(--background-secondary);
+    background-color: color-mix(in srgb, var(--background-secondary) 86%, var(--text-normal) 4.5%);
+    border-color: rgba(255, 255, 255, 0.07);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.22);
+}
+
+.theme-light .pdf-settings-card {
+    background-color: var(--background-secondary);
+    background-color: color-mix(in srgb, var(--background-secondary) 78%, var(--background-primary) 22%);
+    border-color: rgba(0, 0, 0, 0.07);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.045);
+}
+
+.pdf-settings-card-header {
+    padding: 13px 22px 11px 24px;
+    border-bottom: 1px solid var(--background-modifier-border);
+    background-color: rgba(128, 128, 128, 0.04);
+    box-sizing: border-box;
+}
+
+.theme-dark .pdf-settings-card-header {
+    border-bottom-color: rgba(255, 255, 255, 0.065);
+    background-color: rgba(255, 255, 255, 0.025);
+}
+
+.theme-light .pdf-settings-card-header {
+    border-bottom-color: rgba(0, 0, 0, 0.065);
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+.pdf-settings-card-title {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 14px;
+    font-weight: 650;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+    color: var(--text-normal);
+}
+
+.pdf-settings-card-title::before {
+    content: "";
+    display: inline-block;
+    width: 3px;
+    height: 14px;
+    border-radius: 2px;
+    background-color: var(--interactive-accent);
+    flex-shrink: 0;
+}
+
+.pdf-settings-card-desc {
+    margin-top: 5px;
+    padding-left: 12px;
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--text-muted);
+    white-space: normal;
+    overflow-wrap: break-word;
+}
+
+.pdf-settings-card-body {
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+}
+
+.pdf-settings-card-body .setting-item {
+    border-top: 1px solid var(--background-modifier-border);
+    margin: 0 !important;
+    padding: 14px 22px 14px 26px !important;
+    box-sizing: border-box !important;
+}
+
+.theme-dark .pdf-settings-card-body .setting-item {
+    border-top-color: rgba(255, 255, 255, 0.06);
+}
+
+.theme-light .pdf-settings-card-body .setting-item {
+    border-top-color: rgba(0, 0, 0, 0.06);
+}
+
+.pdf-settings-card-body > .setting-item:first-child {
+    border-top: none !important;
+}
+
+/* --------------------------------------------------------------------------
+   4b. PDF Settings Sidebar View
+   -------------------------------------------------------------------------- */
+
+.pdf-sidebar-root {
+    overflow-x: hidden;
+    padding: 14px 16px 20px 16px !important;
+    box-sizing: border-box !important;
+}
+
+.pdf-sidebar-root .pdf-defaults-bar {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 18px 12px 22px;
+    margin-bottom: 16px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 12px;
+    background-color: var(--background-secondary);
+    box-sizing: border-box;
+}
+
+.theme-dark .pdf-sidebar-root .pdf-defaults-bar {
+    background-color: color-mix(in srgb, var(--background-secondary) 86%, var(--text-normal) 4.5%);
+    border-color: rgba(255, 255, 255, 0.07);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.22);
+}
+
+.theme-light .pdf-sidebar-root .pdf-defaults-bar {
+    background-color: color-mix(in srgb, var(--background-secondary) 78%, var(--background-primary) 22%);
+    border-color: rgba(0, 0, 0, 0.07);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.045);
+}
+
+.pdf-sidebar-root .pdf-defaults-bar.has-overrides {
+    border-color: var(--interactive-accent);
+}
+
+.pdf-sidebar-root .pdf-defaults-status {
+    font-size: 12px;
+    line-height: 1.35;
+    color: var(--text-muted);
+}
+
+.pdf-sidebar-root .pdf-defaults-bar.has-overrides .pdf-defaults-status {
+    color: var(--text-normal);
+    font-weight: 500;
+}
+
+.pdf-sidebar-root .pdf-defaults-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.pdf-sidebar-root .pdf-defaults-actions button {
+    flex: 1 1 110px;
+    font-size: 12px;
+    padding: 5px 10px;
+    cursor: pointer;
+}
+
+.pdf-sidebar-root .pdf-defaults-actions button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.pdf-sidebar-root .pdf-settings-card-header {
+    padding: 11px 18px 10px 20px;
+}
+
+.pdf-sidebar-root .pdf-settings-card-title {
+    font-size: 13px;
+}
+
+.pdf-sidebar-root .pdf-settings-card-body .setting-item {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 6px !important;
+    padding: 12px 18px 12px 22px !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+}
+
+.pdf-sidebar-root .setting-item-info {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-right: 0 !important;
+    padding-right: 0 !important;
+    flex: none !important;
+    box-sizing: border-box !important;
+}
+
+.pdf-sidebar-root .setting-item-name,
+.pdf-sidebar-root .setting-item-description {
+    white-space: normal !important;
+    word-break: normal !important;
+    overflow-wrap: break-word !important;
+}
+
+.pdf-sidebar-root .setting-item-control {
+    width: 100% !important;
+    max-width: 100% !important;
+    justify-content: flex-start !important;
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+    margin-top: 2px !important;
+    box-sizing: border-box !important;
+}
+
+.pdf-sidebar-root .setting-item-control select,
+.pdf-sidebar-root .setting-item-control input[type="text"],
+.pdf-sidebar-root .setting-item-control input[type="number"],
+.pdf-sidebar-root .setting-item-control textarea {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+.pdf-sidebar-root .setting-item-control input[type="range"] {
+    flex: 1 1 140px !important;
+    min-width: 120px !important;
+}
+
+.pdf-sidebar-root .pdf-generate-wrap {
+    margin-top: 14px;
+    padding-bottom: 12px;
+    width: 100%;
+}
+
+.pdf-sidebar-root .pdf-generate-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    min-height: 40px;
+    padding: 10px 16px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.pdf-sidebar-root .pdf-bookmark-levels-setting {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+}
+
+.pdf-sidebar-root .pdf-bookmark-levels-setting .setting-item-info {
+    margin-right: 0;
+}
+
+.pdf-sidebar-root .pdf-bookmark-levels-setting .setting-item-control {
+    width: 100%;
+    justify-content: flex-start;
+}
+
+.pdf-sidebar-root .pdf-bookmark-levels-box {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    width: 100%;
+    max-width: 100%;
+    padding: 8px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 8px;
+    background: var(--background-primary);
+    box-sizing: border-box;
+}
+
+.pdf-sidebar-root .pdf-bookmark-levels-box.pdf-toc-mode-box {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+}
+
+.pdf-sidebar-root .pdf-bookmark-level-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 32px;
+    padding: 5px 8px;
+    border-radius: 6px;
+    background-color: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.25;
+    color: var(--text-normal);
+    cursor: pointer;
+    user-select: none;
+    margin: 0;
+    box-sizing: border-box;
+}
+
+.pdf-sidebar-root .pdf-toc-mode-box .pdf-bookmark-level-item {
+    justify-content: flex-start;
+    gap: 8px;
+    width: 100%;
+    padding: 6px 10px;
+}
+
+.is-mobile .pdf-sidebar-root .pdf-bookmark-level-item {
+    min-height: 38px;
+    font-size: 13px;
+}
+
+.pdf-sidebar-root .pdf-bookmark-level-item input[type="checkbox"] {
+    width: var(--checkbox-size, 18px) !important;
+    min-width: var(--checkbox-size, 18px) !important;
+    max-width: var(--checkbox-size, 18px) !important;
+    height: var(--checkbox-size, 18px) !important;
+    min-height: var(--checkbox-size, 18px) !important;
+    max-height: var(--checkbox-size, 18px) !important;
+    flex: 0 0 var(--checkbox-size, 18px) !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+    cursor: pointer;
+}
+
+.pdf-scale-value-label {
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    min-width: 38px;
+    text-align: right;
+    color: var(--text-muted);
+    margin-right: 6px;
+}
+
+.pdf-sidebar-divider {
+    border-top: 1px solid var(--background-modifier-border);
+}
+
+.pdf-sidebar-divider-spaced {
+    border-top: 1px solid var(--background-modifier-border);
+    margin-top: 15px;
+}
+
+.pdf-preview-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 15px;
+    margin-bottom: 8px;
+}
+
+.pdf-preview-title-group {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+}
+
+.pdf-preview-heading {
+    margin: 0;
+}
+
+.pdf-preview-timer {
+    font-variant-numeric: tabular-nums;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-muted);
+}
+
+.pdf-preview-timer.is-running {
+    color: var(--text-accent);
+}
+
+.pdf-preview-timer.is-error {
+    color: var(--text-error);
+}
+
+.pdf-preview-controls {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+
+.pdf-preview-zoom-btn {
+    padding: 3px 8px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.pdf-preview-zoom-reset-btn {
+    padding: 3px 7px;
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+    min-width: 44px;
+}
+
+.pdf-preview-stop-btn {
+    display: none;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 9px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.pdf-preview-stop-btn.is-visible {
+    display: inline-flex;
+}
+
+.pdf-preview-reload-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.pdf-preview-btn-icon {
+    display: inline-flex;
+    align-items: center;
+}
+
+.pdf-preview-container {
+    width: 100%;
+    height: 500px;
+    overflow: auto;
+    border: 1px solid var(--background-modifier-border);
+}
+
+.pdf-preview-zoom-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 10px 10px 50px 25px;
+    width: 100%;
+}
+
+.pdf-no-file {
+    padding: 20px;
+    color: var(--text-muted);
+}
+
+.pdf-preview-page {
+    text-align: center;
+    background-color: var(--background-secondary);
+    padding: 5px;
+}
+
+.pdf-preview-page canvas {
+    width: 100%;
+    height: auto;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.pdf-preview-page-label {
+    font-size: 10px;
+}
+
+/* --------------------------------------------------------------------------
+   5. Global Plugin Settings Tab
+   -------------------------------------------------------------------------- */
+
+/* Preserve Obsidian's native padding-top on .vertical-tab-content so mobile's floating header bar never overlaps the first card */
+.pdf-settings-tab-root {
+    overflow-x: hidden;
+    padding-left: 20px;
+    padding-right: 20px;
+    padding-bottom: 28px;
+    box-sizing: border-box;
+}
+
+.pdf-settings-tab-root > .pdf-settings-card:first-child {
+    margin-top: 6px;
+}
+
+.pdf-settings-tab-root .pdf-settings-card {
+    margin-bottom: 18px;
+}
+
+.pdf-settings-tab-root .pdf-settings-card-body .setting-item {
+    padding: 15px 22px 15px 28px !important;
+}
+
+.pdf-settings-tab-root .pdf-settings-card-body .setting-item-info {
+    padding-right: 16px;
+}
+
+.pdf-bookmark-levels-box {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 14px;
+    max-width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 8px;
+    background: var(--background-primary);
+    box-sizing: border-box;
+}
+
+.pdf-bookmark-level-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.3;
+    color: var(--text-normal);
+    white-space: nowrap;
+    flex: 0 0 auto;
+    cursor: pointer;
+    user-select: none;
+    margin: 0;
+    box-sizing: border-box;
+}
+
+.pdf-bookmark-level-item span {
+    line-height: 1.25;
+    min-width: 0;
+}
+
+.pdf-bookmark-level-item input[type="checkbox"],
+.setting-item-control .pdf-bookmark-level-item input[type="checkbox"],
+.pdf-settings-tab-root .setting-item-control .pdf-bookmark-level-item input[type="checkbox"],
+.is-mobile .setting-item-control .pdf-bookmark-level-item input[type="checkbox"] {
+    width: var(--checkbox-size, 18px) !important;
+    min-width: var(--checkbox-size, 18px) !important;
+    max-width: var(--checkbox-size, 18px) !important;
+    height: var(--checkbox-size, 18px) !important;
+    min-height: var(--checkbox-size, 18px) !important;
+    max-height: var(--checkbox-size, 18px) !important;
+    flex: 0 0 var(--checkbox-size, 18px) !important;
+    margin: 0 !important;
+    margin-inline-start: 0 !important;
+    margin-inline-end: 0 !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+    cursor: pointer;
+}
+
+.pdf-settings-tab-root.pdf-settings-tab-mobile,
+.is-mobile .pdf-settings-tab-root {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+    padding-bottom: calc(36px + var(--safe-area-inset-bottom, 0px)) !important;
+    box-sizing: border-box !important;
+}
+
+.pdf-settings-tab-root.pdf-settings-tab-mobile > .pdf-settings-card:first-child,
+.is-mobile .pdf-settings-tab-root > .pdf-settings-card:first-child {
+    margin-top: 12px;
+}
+
+.pdf-settings-tab-root.pdf-settings-tab-mobile .pdf-settings-card-header,
+.is-mobile .pdf-settings-tab-root .pdf-settings-card-header {
+    padding: 13px 20px 11px 22px !important;
+}
+
+.pdf-settings-tab-root.pdf-settings-tab-mobile .pdf-settings-card-body .setting-item,
+.is-mobile .pdf-settings-tab-root .pdf-settings-card-body .setting-item {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+    padding: 14px 20px 14px 24px !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+}
+
+.pdf-settings-tab-root.pdf-settings-tab-mobile .setting-item-info,
+.is-mobile .pdf-settings-tab-root .setting-item-info {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-right: 0 !important;
+    padding-right: 0 !important;
+    flex: none !important;
+    box-sizing: border-box !important;
+}
+
+.pdf-settings-tab-root.pdf-settings-tab-mobile .setting-item-name,
+.pdf-settings-tab-root.pdf-settings-tab-mobile .setting-item-description,
+.is-mobile .pdf-settings-tab-root .setting-item-name,
+.is-mobile .pdf-settings-tab-root .setting-item-description {
+    white-space: normal !important;
+    word-break: normal !important;
+    overflow-wrap: break-word !important;
+}
+
+.pdf-settings-tab-root.pdf-settings-tab-mobile .setting-item-control,
+.is-mobile .pdf-settings-tab-root .setting-item-control {
+    width: 100% !important;
+    max-width: 100% !important;
+    justify-content: flex-start !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    box-sizing: border-box !important;
+}
+
+.pdf-settings-tab-root.pdf-settings-tab-mobile .setting-item-control select,
+.pdf-settings-tab-root.pdf-settings-tab-mobile .setting-item-control input[type="text"],
+.pdf-settings-tab-root.pdf-settings-tab-mobile .setting-item-control input[type="number"],
+.pdf-settings-tab-root.pdf-settings-tab-mobile .setting-item-control textarea,
+.is-mobile .pdf-settings-tab-root .setting-item-control select,
+.is-mobile .pdf-settings-tab-root .setting-item-control input[type="text"],
+.is-mobile .pdf-settings-tab-root .setting-item-control input[type="number"],
+.is-mobile .pdf-settings-tab-root .setting-item-control textarea {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+.pdf-settings-tab-root.pdf-settings-tab-mobile .pdf-bookmark-levels-box.pdf-toc-mode-box,
+.is-mobile .pdf-settings-tab-root .pdf-bookmark-levels-box.pdf-toc-mode-box {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 8px !important;
+    border-radius: 10px !important;
+}
+
+.pdf-settings-tab-root.pdf-settings-tab-mobile .pdf-toc-mode-box .pdf-bookmark-level-item,
+.is-mobile .pdf-settings-tab-root .pdf-toc-mode-box .pdf-bookmark-level-item {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 10px !important;
+    width: 100% !important;
+    min-height: 40px !important;
+    padding: 8px 12px !important;
+    border-radius: 8px !important;
+    background-color: var(--background-secondary) !important;
+    border: 1px solid var(--background-modifier-border) !important;
+    white-space: normal !important;
+}
+
+.pdf-settings-tab-root.pdf-settings-tab-mobile .pdf-bookmark-levels-box:not(.pdf-toc-mode-box),
+.is-mobile .pdf-settings-tab-root .pdf-bookmark-levels-box:not(.pdf-toc-mode-box) {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 8px !important;
+    border-radius: 10px !important;
+}
+
+.pdf-settings-tab-root.pdf-settings-tab-mobile .pdf-bookmark-levels-box:not(.pdf-toc-mode-box) .pdf-bookmark-level-item,
+.is-mobile .pdf-settings-tab-root .pdf-bookmark-levels-box:not(.pdf-toc-mode-box) .pdf-bookmark-level-item {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    width: 100% !important;
+    min-height: 40px !important;
+    padding: 6px 8px !important;
+    border-radius: 8px !important;
+    background-color: var(--background-secondary) !important;
+    border: 1px solid var(--background-modifier-border) !important;
+}
+
+@media (max-width: 768px) {
+    .pdf-settings-tab-root {
+        padding-left: 16px !important;
+        padding-right: 16px !important;
+        padding-bottom: calc(36px + var(--safe-area-inset-bottom, 0px)) !important;
+        box-sizing: border-box !important;
+    }
+
+    .pdf-settings-tab-root > .pdf-settings-card:first-child {
+        margin-top: 12px;
+    }
+
+    .pdf-settings-tab-root .pdf-settings-card-header {
+        padding: 13px 20px 11px 22px !important;
+    }
+
+    .pdf-settings-tab-root .pdf-settings-card-body .setting-item {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 8px !important;
+        padding: 14px 20px 14px 24px !important;
+        margin: 0 !important;
+        box-sizing: border-box !important;
+    }
+
+    .pdf-settings-tab-root .setting-item-info {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin-right: 0 !important;
+        padding-right: 0 !important;
+        flex: none !important;
+        box-sizing: border-box !important;
+    }
+
+    .pdf-settings-tab-root .setting-item-name,
+    .pdf-settings-tab-root .setting-item-description {
+        white-space: normal !important;
+        word-break: normal !important;
+        overflow-wrap: break-word !important;
+    }
+
+    .pdf-settings-tab-root .setting-item-control {
+        width: 100% !important;
+        max-width: 100% !important;
+        justify-content: flex-start !important;
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+        box-sizing: border-box !important;
+    }
+
+    .pdf-settings-tab-root .setting-item-control select,
+    .pdf-settings-tab-root .setting-item-control input[type="text"],
+    .pdf-settings-tab-root .setting-item-control input[type="number"],
+    .pdf-settings-tab-root .setting-item-control textarea {
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    .pdf-settings-tab-root .pdf-bookmark-levels-box.pdf-toc-mode-box {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 8px !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 8px !important;
+        border-radius: 10px !important;
+    }
+
+    .pdf-settings-tab-root .pdf-toc-mode-box .pdf-bookmark-level-item {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+        gap: 10px !important;
+        width: 100% !important;
+        min-height: 40px !important;
+        padding: 8px 12px !important;
+        border-radius: 8px !important;
+        background-color: var(--background-secondary) !important;
+        border: 1px solid var(--background-modifier-border) !important;
+        white-space: normal !important;
+    }
+
+    .pdf-settings-tab-root .pdf-bookmark-levels-box:not(.pdf-toc-mode-box) {
+        display: grid !important;
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        gap: 8px !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 8px !important;
+        border-radius: 10px !important;
+    }
+
+    .pdf-settings-tab-root .pdf-bookmark-levels-box:not(.pdf-toc-mode-box) .pdf-bookmark-level-item {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 8px !important;
+        width: 100% !important;
+        min-height: 40px !important;
+        padding: 6px 8px !important;
+        border-radius: 8px !important;
+        background-color: var(--background-secondary) !important;
+        border: 1px solid var(--background-modifier-border) !important;
+    }
+}
+
+/* --------------------------------------------------------------------------
+   6. Folder Export & Multi-Note Merge Modals
+   -------------------------------------------------------------------------- */
+
+.pdf-modal-heading {
+    margin-top: 0;
+}
+
+.pdf-modal-desc {
+    margin-bottom: 10px;
+}
+
+.pdf-modal-search-input {
+    width: 100%;
+    margin-bottom: 10px;
+    box-sizing: border-box;
+}
+
+.pdf-folder-modal-list {
+    width: 100%;
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    background-color: var(--background-primary);
+}
+
+.pdf-modal-empty-row {
+    padding: 10px 12px;
+    font-size: 13px;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.pdf-modal-empty-compact {
+    padding: 8px 10px;
+    font-size: 12px;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.pdf-folder-modal-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    font-size: 13px;
+    line-height: 1.3;
+    cursor: pointer;
+    word-break: break-word;
+    color: var(--text-normal);
+    border-bottom: 1px solid var(--background-modifier-border);
+    background-color: transparent;
+}
+
+.pdf-folder-modal-row:last-child {
+    border-bottom: none;
+}
+
+.pdf-folder-modal-row.is-active {
+    background-color: var(--background-modifier-hover);
+}
+
+.pdf-folder-modal-icon {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    color: var(--text-muted);
+}
+
+.pdf-merge-meta-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.pdf-merge-meta-grid.is-mobile {
+    grid-template-columns: 1fr;
+}
+
+.pdf-merge-field-label {
+    display: block;
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+}
+
+.pdf-merge-full-input {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.pdf-merge-picker-section {
+    margin-bottom: 10px;
+}
+
+.pdf-merge-picker-toggle {
+    font-size: 12px;
+    padding: 3px 10px;
+    cursor: pointer;
+    margin-bottom: 6px;
+}
+
+.pdf-merge-picker-body.is-collapsed {
+    display: none;
+}
+
+.pdf-merge-search-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.pdf-merge-search-input {
+    flex: 1;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+.pdf-merge-action-btn {
+    font-size: 12px;
+    padding: 4px 8px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.pdf-merge-available-list {
+    width: 100%;
+    max-height: 180px;
+    overflow-y: auto;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    background-color: var(--background-primary);
+    margin-bottom: 10px;
+}
+
+.pdf-merge-available-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    font-size: 13px;
+    cursor: pointer;
+    margin: 0;
+    border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.pdf-merge-available-row:last-child {
+    border-bottom: none;
+}
+
+.pdf-merge-available-cb {
+    width: var(--checkbox-size, 18px) !important;
+    min-width: var(--checkbox-size, 18px) !important;
+    max-width: var(--checkbox-size, 18px) !important;
+    height: var(--checkbox-size, 18px) !important;
+    min-height: var(--checkbox-size, 18px) !important;
+    max-height: var(--checkbox-size, 18px) !important;
+    flex: 0 0 var(--checkbox-size, 18px) !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    cursor: pointer;
+    box-sizing: border-box !important;
+}
+
+.pdf-merge-available-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    line-height: 1.25;
+}
+
+.pdf-merge-available-title {
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pdf-merge-available-folder {
+    font-size: 11px;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pdf-merge-order-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.pdf-merge-order-header {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.pdf-merge-sort-controls {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.pdf-merge-sort-btn {
+    font-size: 11px;
+    padding: 1px 7px;
+    cursor: pointer;
+}
+
+.pdf-merge-order-list {
+    width: 100%;
+    max-height: 180px;
+    overflow-y: auto;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    background-color: var(--background-secondary);
+    margin-bottom: 12px;
+    position: relative;
+}
+
+.pdf-merge-order-list.is-folder-mode {
+    max-height: 320px;
+}
+
+.pdf-merge-order-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    padding: 6px 8px;
+    font-size: 12px;
+    background-color: var(--background-secondary);
+    transition: background-color 80ms ease;
+    border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.pdf-merge-order-row:last-child {
+    border-bottom: none;
+}
+
+.pdf-merge-order-row.is-flip-reset {
+    transition: none;
+}
+
+.pdf-merge-order-row.is-flip-animate {
+    transition: transform 140ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.pdf-merge-order-row.is-dragging {
+    position: fixed;
+    box-sizing: border-box;
+    z-index: 99999;
+    pointer-events: none;
+    background-color: var(--background-primary);
+    border: 1px solid var(--interactive-accent);
+    border-radius: 6px;
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.35);
+    transform: scale(1.015);
+    transition: transform 100ms ease, box-shadow 100ms ease;
+    opacity: 0.96;
+}
+
+.pdf-merge-row-label-wrap {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    flex: 1;
+    min-width: 0;
+}
+
+.pdf-merge-row-num {
+    font-weight: 600;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    min-width: 20px;
+}
+
+.pdf-merge-row-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 500;
+}
+
+.pdf-merge-row-controls {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.pdf-merge-row-btn {
+    padding: 2px 7px;
+    font-size: 12px;
+    line-height: 1.2;
+    cursor: pointer;
+}
+
+.pdf-merge-drag-handle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3px 6px;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    color: var(--text-muted);
+}
+
+.pdf-merge-order-row.is-dragging .pdf-merge-drag-handle {
+    cursor: grabbing;
+}
+
+.pdf-merge-drop-placeholder {
+    box-sizing: border-box;
+    border: 2px dashed var(--interactive-accent);
+    border-radius: 5px;
+    margin: 2px 4px;
+    background-color: var(--background-modifier-hover);
+    opacity: 0.55;
+    pointer-events: none;
+}
+
+.pdf-merge-footer-row {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+body.pdf-merge-dragging-active {
+    user-select: none;
+    cursor: grabbing;
+}
+
+.pdf-merge-dir-col {
+    position: relative;
+}
+
+.pdf-merge-dir-col .pdf-path-suggest-list {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 100%;
+    z-index: 20;
+    margin-top: 3px;
+    margin-bottom: 0;
+}
