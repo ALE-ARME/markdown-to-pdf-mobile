@@ -310,6 +310,15 @@
     display: flow-root;
 }
 
+.pdf-export-root .markdown-preview-sizer > * {
+    content-visibility: visible !important;
+}
+
+.pdf-export-root .pdf-image-slot-css-sized {
+    max-width: 100%;
+    max-height: 100%;
+}
+
 .pdf-export-root .view-header,
 .pdf-export-root .workspace-leaf-resize-handle,
 .pdf-export-root .markdown-source-view,
@@ -339,7 +348,8 @@
 .pdf-export-root .mermaid-controls,
 .pdf-export-root .mermaid-zoom-buttons,
 .pdf-export-root .zoom-controls,
-.pdf-export-root .pan-zoom-controls {
+.pdf-export-root .pan-zoom-controls,
+.pdf-export-root .switchable-layout .switch-button {
     display: none !important;
 }
 

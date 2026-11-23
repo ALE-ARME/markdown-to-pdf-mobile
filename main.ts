@@ -2194,7 +2194,11 @@ export default class PdfPlugin extends Plugin {
         }
         slots.push(...Array.from(rootEl.querySelectorAll<HTMLElement>('.pdf-image-slot')));
         for (const slot of slots) {
-            if (slot.getAttribute('data-pdf-inline-icon') === '1' || slot.getAttribute('data-pdf-height-fitted') === '1') continue;
+            if (
+                slot.getAttribute('data-pdf-inline-icon') === '1' ||
+                slot.getAttribute('data-pdf-height-fitted') === '1' ||
+                slot.getAttribute('data-pdf-css-sized') === '1'
+            ) continue;
             const natW = parseFloat(slot.getAttribute('data-pdf-nat-w') || '0');
             const natH = parseFloat(slot.getAttribute('data-pdf-nat-h') || '0');
             if (!(natW > 0 && natH > 0)) continue;
@@ -2228,8 +2232,14 @@ export default class PdfPlugin extends Plugin {
             return null;
         }
 
-        const slots = Array.from(blockEl.querySelectorAll<HTMLElement>('.pdf-image-slot:not([data-pdf-inline-icon="1"])'));
-        if (blockEl.classList.contains('pdf-image-slot') && blockEl.getAttribute('data-pdf-inline-icon') !== '1') {
+        const slots = Array.from(
+            blockEl.querySelectorAll<HTMLElement>('.pdf-image-slot:not([data-pdf-inline-icon="1"]):not([data-pdf-css-sized="1"])')
+        );
+        if (
+            blockEl.classList.contains('pdf-image-slot') &&
+            blockEl.getAttribute('data-pdf-inline-icon') !== '1' &&
+            blockEl.getAttribute('data-pdf-css-sized') !== '1'
+        ) {
             slots.unshift(blockEl);
         }
         if (slots.length === 1) {
@@ -2897,7 +2907,7 @@ export default class PdfPlugin extends Plugin {
             }
         }
 
-        // Convert any remaining non-embed <img> tags (standard markdown images, HTML <img>, inline icons)
+        // Convert any remaining non-embed <img> tags (standard markdown images, HTML <img>, plugin layouts, inline icons)
         const remainingImgs = Array.from(container.querySelectorAll<HTMLImageElement>('img'));
         for (const img of remainingImgs) {
             const src = img.currentSrc || img.src || '';
@@ -2906,13 +2916,45 @@ export default class PdfPlugin extends Plugin {
             const rect = img.getBoundingClientRect();
             const isSmallIcon = img.classList.contains('emoji') || (rect.width > 0 && rect.width <= 28 && rect.height > 0 && rect.height <= 28);
 
+            const pluginLayoutRoot = img.closest<HTMLElement>(
+                '.block-language-image-layout, .image-layouts, .switchable-layout, .carousel'
+            );
+            const parentEl = img.parentElement;
+            const parentDisplay = parentEl ? window.getComputedStyle(parentEl).display : '';
+            const objectFit = (cs.objectFit || 'fill').toLowerCase();
+            const hasExplicitObjectFit =
+                objectFit === 'cover' ||
+                objectFit === 'contain' ||
+                objectFit === 'scale-down' ||
+                objectFit === 'none';
+            const isFlexOrGridChild =
+                parentDisplay.includes('flex') || parentDisplay.includes('grid');
+            const isCssSized =
+                !isSmallIcon && (
+                    !!pluginLayoutRoot ||
+                    (rect.width > 1 && rect.height > 1 && (hasExplicitObjectFit || isFlexOrGridChild))
+                );
+
             const attrW = parseInt(img.getAttribute('width') || '', 10);
             const attrH = parseInt(img.getAttribute('height') || '', 10);
             const csW = parseFloat(cs.width);
             const csH = parseFloat(cs.height);
             const dispW = !isNaN(attrW) && attrW > 0 ? attrW : (isSmallIcon && !isNaN(csW) && csW > 0 ? csW : null);
             const dispH = !isNaN(attrH) && attrH > 0 ? attrH : (isSmallIcon && !isNaN(csH) && csH > 0 ? csH : null);
-            const backingHint = dispW && dispW > 0 ? Math.min(dispW, maxContentWidthPx) : maxContentWidthPx;
+
+            let cssBoxW = rect.width;
+            let cssBoxH = rect.height;
+            if (isCssSized && (cssBoxW <= 1 || cssBoxH <= 1) && parentEl) {
+                const pRect = parentEl.getBoundingClientRect();
+                if (pRect.width > 1 && pRect.height > 1) {
+                    cssBoxW = pRect.width;
+                    cssBoxH = pRect.height;
+                }
+            }
+
+            const backingHint = isCssSized && cssBoxW > 1
+                ? Math.max(64, Math.min(Math.ceil(cssBoxW), maxContentWidthPx))
+                : (dispW && dispW > 0 ? Math.min(dispW, maxContentWidthPx) : maxContentWidthPx);
 
             let loaded: { canvas: HTMLCanvasElement; natW: number; natH: number } | null = null;
 
@@ -2949,16 +2991,58 @@ export default class PdfPlugin extends Plugin {
                 const parentRight = parentBlock
                     ? Math.min(containerRect.right, parentBlock.getBoundingClientRect().right - (parseFloat(window.getComputedStyle(parentBlock).paddingRight) || 0))
                     : containerRect.right;
-                const availW = Math.max(40, Math.floor(parentRight - Math.max(containerRect.left, img.getBoundingClientRect().left)));
-                const slot = this.createImageSlotElement(imgId, loaded.natW, loaded.natH, dispW, dispH, availW, isSmallIcon);
-                img.replaceWith(slot);
-                if (!isSmallIcon) {
-                    const sRect = slot.getBoundingClientRect();
-                    if (sRect.width > 0 && sRect.height > 0 && sRect.right > parentRight + 0.5) {
-                        const clampedW = Math.max(40, Math.floor(parentRight - sRect.left));
-                        const clampedH = Math.max(1, Math.round((clampedW * sRect.height) / sRect.width));
-                        slot.style.width = `${clampedW}px`;
-                        slot.style.height = `${clampedH}px`;
+                const availW = Math.max(40, Math.floor(parentRight - Math.max(containerRect.left, rect.left)));
+
+                if (isCssSized && cssBoxW > 1 && cssBoxH > 1) {
+                    const slot = createDiv({ cls: 'pdf-image-slot' });
+                    slot.setAttribute('data-pdf-img-id', imgId);
+                    slot.setAttribute('data-pdf-nat-w', String(loaded.natW));
+                    slot.setAttribute('data-pdf-nat-h', String(loaded.natH));
+                    slot.setAttribute('data-pdf-css-sized', '1');
+                    slot.setAttribute('data-pdf-object-fit', objectFit);
+                    if (cs.objectPosition) {
+                        slot.setAttribute('data-pdf-object-position', cs.objectPosition);
+                    }
+                    if (cs.borderRadius && cs.borderRadius !== '0px') {
+                        slot.setAttribute('data-pdf-border-radius', cs.borderRadius);
+                        slot.style.borderRadius = cs.borderRadius;
+                    }
+
+                    let finalW = Math.max(1, Math.round(cssBoxW));
+                    let finalH = Math.max(1, Math.round(cssBoxH));
+                    if (finalW > availW + 1 && !pluginLayoutRoot) {
+                        const ratio = availW / finalW;
+                        finalW = availW;
+                        if (objectFit !== 'cover') {
+                            finalH = Math.max(1, Math.round(finalH * ratio));
+                        }
+                    }
+
+                    slot.addClass('pdf-image-slot-css-sized');
+                    slot.style.display = cs.display === 'inline' ? 'inline-block' : (cs.display || 'block');
+                    slot.style.width = `${finalW}px`;
+                    slot.style.height = `${finalH}px`;
+                    slot.style.boxSizing = cs.boxSizing || 'border-box';
+                    if (cs.margin && cs.margin !== '0px') slot.style.margin = cs.margin;
+                    if (cs.flexShrink && cs.flexShrink !== '1') slot.style.flexShrink = cs.flexShrink;
+                    if (cs.flexGrow && cs.flexGrow !== '0') slot.style.flexGrow = cs.flexGrow;
+                    if (cs.alignSelf && cs.alignSelf !== 'auto') slot.style.alignSelf = cs.alignSelf;
+                    if (cs.justifySelf && cs.justifySelf !== 'auto') slot.style.justifySelf = cs.justifySelf;
+                    if (cs.gridColumn && cs.gridColumn !== 'auto') slot.style.gridColumn = cs.gridColumn;
+                    if (cs.gridRow && cs.gridRow !== 'auto') slot.style.gridRow = cs.gridRow;
+
+                    img.replaceWith(slot);
+                } else {
+                    const slot = this.createImageSlotElement(imgId, loaded.natW, loaded.natH, dispW, dispH, availW, isSmallIcon);
+                    img.replaceWith(slot);
+                    if (!isSmallIcon) {
+                        const sRect = slot.getBoundingClientRect();
+                        if (sRect.width > 0 && sRect.height > 0 && sRect.right > parentRight + 0.5) {
+                            const clampedW = Math.max(40, Math.floor(parentRight - sRect.left));
+                            const clampedH = Math.max(1, Math.round((clampedW * sRect.height) / sRect.width));
+                            slot.style.width = `${clampedW}px`;
+                            slot.style.height = `${clampedH}px`;
+                        }
                     }
                 }
             } else {
@@ -3764,9 +3848,15 @@ export default class PdfPlugin extends Plugin {
             if (needsWidth && cs.width && cs.width !== 'auto') {
                 parts.push(`width:${cs.width}`);
             }
+            const hasExplicitInlineHeight = Boolean(el.style && el.style.height && el.style.height !== 'auto');
+            const hasAspectRatio = Boolean(cs.aspectRatio && cs.aspectRatio !== 'auto');
+            const isOverflowClippedBox = (cs.overflowX === 'hidden' || cs.overflowX === 'clip' || cs.overflowY === 'hidden' || cs.overflowY === 'clip') && cs.height && cs.height !== 'auto';
             const needsHeight =
                 isImgSlot ||
                 tag === 'HR' || tag === 'IMG' ||
+                hasExplicitInlineHeight ||
+                hasAspectRatio ||
+                (isOverflowClippedBox && Boolean(parentCs && (parentCs.display.includes('flex') || parentCs.display.includes('grid')))) ||
                 (isMathJaxEl && (cs.height === '0px' || el.childNodes.length === 0 || isPosNonStatic)) ||
                 (isPosNonStatic && cs.height && cs.height !== 'auto') ||
                 (el.childNodes.length === 0 && cs.height && cs.height !== '0px' && cs.height !== 'auto');
@@ -4029,7 +4119,27 @@ export default class PdfPlugin extends Plugin {
 
         const cloneNodeRecursive = (node: Node, parentCs: CSSStyleDeclaration | null, isRoot: boolean): Node | null => {
             if (node.nodeType === Node.TEXT_NODE) {
-                return activeDocument.createTextNode(node.textContent || '');
+                const rawText = node.textContent || '';
+                // Strip invalid XML 1.0 control characters so SVG XHTML serialization never fails silently
+                let hasBadCtrl = false;
+                for (let cIdx = 0; cIdx < rawText.length; cIdx++) {
+                    const code = rawText.charCodeAt(cIdx);
+                    if (code < 0x20 && code !== 0x09 && code !== 0x0A && code !== 0x0D) {
+                        hasBadCtrl = true;
+                        break;
+                    }
+                }
+                if (!hasBadCtrl) {
+                    return activeDocument.createTextNode(rawText);
+                }
+                let safeText = '';
+                for (let cIdx = 0; cIdx < rawText.length; cIdx++) {
+                    const code = rawText.charCodeAt(cIdx);
+                    if (code >= 0x20 || code === 0x09 || code === 0x0A || code === 0x0D) {
+                        safeText += rawText[cIdx];
+                    }
+                }
+                return activeDocument.createTextNode(safeText);
             }
             if (node.nodeType !== Node.ELEMENT_NODE) return null;
 
@@ -4207,6 +4317,14 @@ export default class PdfPlugin extends Plugin {
             return null;
         }
 
+        // Wait for Blink/Skia to complete SVG <foreignObject> & embedded @font-face decode before drawing
+        if (typeof img.decode === 'function') {
+            await Promise.race([
+                img.decode().catch(() => {}),
+                new Promise<void>(r => window.setTimeout(r, 1500))
+            ]);
+        }
+
         const canvas = createEl('canvas');
         canvas.width = Math.max(1, Math.round(widthPx * scale));
         canvas.height = Math.max(1, Math.round(heightPx * scale));
@@ -4217,6 +4335,12 @@ export default class PdfPlugin extends Plugin {
             return null;
         }
 
+        const trimmedTextLen = (targetEl.textContent || '').trim().length;
+        const hasImageSlots = !!targetEl.querySelector('[data-pdf-img-id]');
+        const expectsPaintedPixels =
+            trimmedTextLen > 0 ||
+            !!targetEl.querySelector('svg, hr, table, canvas, input, .pdf-vector-checkbox');
+
         ctx.fillStyle = bgHex;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         try {
@@ -4224,32 +4348,28 @@ export default class PdfPlugin extends Plugin {
             // Verify canvas is not tainted (catches iOS WKWebView / strict WebViews immediately)
             ctx.getImageData(0, 0, 1, 1);
 
-            // One-time visual sanity check on the first text page to ensure WebView actually painted <foreignObject>
-            if (this.foreignObjectSupported === null) {
-                const hasMeaningfulText = (targetEl.textContent || '').trim().length > 10 && !targetEl.querySelector('[data-pdf-img-id]');
-                if (hasMeaningfulText) {
-                    let foundNonBg = false;
-                    const sampleRows = 16;
-                    for (let r = 1; r <= sampleRows && !foundNonBg; r++) {
-                        const sy = Math.min(canvas.height - 1, Math.floor((canvas.height * r) / (sampleRows + 1)));
-                        const rowData = ctx.getImageData(0, sy, canvas.width, 1).data;
-                        for (let px = 0; px < rowData.length; px += 12) {
-                            if (
-                                Math.abs(rowData[px] - bgRgb[0]) > 6 ||
-                                Math.abs(rowData[px + 1] - bgRgb[1]) > 6 ||
-                                Math.abs(rowData[px + 2] - bgRgb[2]) > 6
-                            ) {
-                                foundNonBg = true;
-                                break;
-                            }
-                        }
-                    }
-                    if (!foundNonBg) {
+            // Verify EVERY page with visible DOM content actually painted non-background pixels.
+            // Prevents transient Chromium/WebView <foreignObject> paint drops (e.g. under memory pressure
+            // or delayed SVG @font-face decode on late pages of long documents) from emitting solid blank pages.
+            if (expectsPaintedPixels) {
+                let painted = this.canvasHasNonBgPixels(ctx, canvas.width, canvas.height, bgRgb);
+                if (!painted) {
+                    // Single fast retry after yielding a paint frame in case SVG font/layout commit lagged
+                    await this.yieldFrameSafe(40);
+                    ctx.fillStyle = bgHex;
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    painted = this.canvasHasNonBgPixels(ctx, canvas.width, canvas.height, bgRgb);
+                }
+                if (!painted) {
+                    if (this.foreignObjectSupported === null && trimmedTextLen > 10 && !hasImageSlots) {
                         this.foreignObjectSupported = false;
-                        canvas.width = 0;
-                        canvas.height = 0;
-                        return null;
                     }
+                    canvas.width = 0;
+                    canvas.height = 0;
+                    return null;
+                }
+                if (this.foreignObjectSupported === null && trimmedTextLen > 10 && !hasImageSlots) {
                     this.foreignObjectSupported = true;
                 }
             }
@@ -4265,6 +4385,35 @@ export default class PdfPlugin extends Plugin {
         }
 
         return canvas;
+    }
+
+    /**
+     * Samples horizontal scanlines across a rendered page canvas to verify that at least some pixels
+     * differ from the uniform page background color (detects silent blank-canvas rasterization drops).
+     */
+    private canvasHasNonBgPixels(
+        ctx: CanvasRenderingContext2D,
+        width: number,
+        height: number,
+        bgRgb: number[]
+    ): boolean {
+        if (width <= 0 || height <= 0) return false;
+        const sampleRows = Math.min(height, 24);
+        const stepBytes = 12; // every 3rd pixel (RGBA = 4 bytes)
+        for (let r = 1; r <= sampleRows; r++) {
+            const sy = Math.min(height - 1, Math.floor((height * r) / (sampleRows + 1)));
+            const rowData = ctx.getImageData(0, sy, width, 1).data;
+            for (let px = 0; px < rowData.length; px += stepBytes) {
+                if (
+                    Math.abs(rowData[px] - bgRgb[0]) > 6 ||
+                    Math.abs(rowData[px + 1] - bgRgb[1]) > 6 ||
+                    Math.abs(rowData[px + 2] - bgRgb[2]) > 6
+                ) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /**
@@ -4333,6 +4482,19 @@ export default class PdfPlugin extends Plugin {
         return pageCanvas;
     }
 
+    private parseCssObjectPositionAxis(token: string | undefined, defaultFrac: number): number {
+        if (!token) return defaultFrac;
+        const lower = token.trim().toLowerCase();
+        if (lower === 'left' || lower === 'top') return 0;
+        if (lower === 'center') return 0.5;
+        if (lower === 'right' || lower === 'bottom') return 1;
+        if (lower.endsWith('%')) {
+            const pct = parseFloat(lower);
+            if (Number.isFinite(pct)) return Math.max(0, Math.min(1, pct / 100));
+        }
+        return defaultFrac;
+    }
+
     private compositeImagesOntoCanvas(
         canvas: HTMLCanvasElement,
         targetEl: HTMLElement,
@@ -4354,11 +4516,133 @@ export default class PdfPlugin extends Plugin {
             if (!srcCanvas || srcCanvas.width <= 0 || srcCanvas.height <= 0) continue;
             const slotRect = slot.getBoundingClientRect();
             if (slotRect.width <= 0 || slotRect.height <= 0) continue;
+
             const dx = Math.round((slotRect.left - targetRect.left) * scale);
             const dy = Math.round((slotRect.top - targetRect.top) * scale);
             const dw = Math.max(1, Math.round(slotRect.width * scale));
             const dh = Math.max(1, Math.round(slotRect.height * scale));
-            pageCtx.drawImage(srcCanvas, 0, 0, srcCanvas.width, srcCanvas.height, dx, dy, dw, dh);
+
+            // Respect ancestor overflow:hidden / overflow:clip containers (e.g. carousels, grids, cards)
+            let clipLeft = 0;
+            let clipTop = 0;
+            let clipRight = canvas.width;
+            let clipBottom = canvas.height;
+            let hasAncestorClip = false;
+            let anc = slot.parentElement;
+            while (anc && anc !== targetEl) {
+                const aCs = window.getComputedStyle(anc);
+                const clipX = aCs.overflowX === 'hidden' || aCs.overflowX === 'clip';
+                const clipY = aCs.overflowY === 'hidden' || aCs.overflowY === 'clip';
+                if (clipX || clipY) {
+                    const aRect = anc.getBoundingClientRect();
+                    if (clipX) {
+                        clipLeft = Math.max(clipLeft, Math.round((aRect.left - targetRect.left) * scale));
+                        clipRight = Math.min(clipRight, Math.round((aRect.right - targetRect.left) * scale));
+                    }
+                    if (clipY) {
+                        clipTop = Math.max(clipTop, Math.round((aRect.top - targetRect.top) * scale));
+                        clipBottom = Math.min(clipBottom, Math.round((aRect.bottom - targetRect.top) * scale));
+                    }
+                    hasAncestorClip = true;
+                }
+                anc = anc.parentElement;
+            }
+            if (hasAncestorClip && (clipRight <= clipLeft || clipBottom <= clipTop)) continue;
+
+            const objectFit = (slot.getAttribute('data-pdf-object-fit') || 'fill').toLowerCase();
+            const rawObjPos = slot.getAttribute('data-pdf-object-position') || '50% 50%';
+            const posParts = rawObjPos.trim().split(/\s+/);
+            const posX = this.parseCssObjectPositionAxis(posParts[0], 0.5);
+            const posY = this.parseCssObjectPositionAxis(posParts[1] ?? posParts[0], 0.5);
+
+            const radiusAttr = slot.getAttribute('data-pdf-border-radius') || window.getComputedStyle(slot).borderRadius || '';
+            const parsedRadiusPx = parseFloat(radiusAttr);
+            const cornerRadius = Number.isFinite(parsedRadiusPx) && parsedRadiusPx > 0.5
+                ? Math.min(parsedRadiusPx * scale, dw / 2, dh / 2)
+                : 0;
+
+            const needsSave = hasAncestorClip || cornerRadius > 0 || objectFit === 'none' || objectFit === 'scale-down';
+            if (needsSave) {
+                pageCtx.save();
+                if (hasAncestorClip) {
+                    pageCtx.beginPath();
+                    pageCtx.rect(clipLeft, clipTop, clipRight - clipLeft, clipBottom - clipTop);
+                    pageCtx.clip();
+                }
+                if (cornerRadius > 0) {
+                    const r = cornerRadius;
+                    pageCtx.beginPath();
+                    pageCtx.moveTo(dx + r, dy);
+                    pageCtx.lineTo(dx + dw - r, dy);
+                    pageCtx.quadraticCurveTo(dx + dw, dy, dx + dw, dy + r);
+                    pageCtx.lineTo(dx + dw, dy + dh - r);
+                    pageCtx.quadraticCurveTo(dx + dw, dy + dh, dx + dw - r, dy + dh);
+                    pageCtx.lineTo(dx + r, dy + dh);
+                    pageCtx.quadraticCurveTo(dx, dy + dh, dx, dy + dh - r);
+                    pageCtx.lineTo(dx, dy + r);
+                    pageCtx.quadraticCurveTo(dx, dy, dx + r, dy);
+                    pageCtx.closePath();
+                    pageCtx.clip();
+                } else if (objectFit === 'none' || objectFit === 'scale-down') {
+                    pageCtx.beginPath();
+                    pageCtx.rect(dx, dy, dw, dh);
+                    pageCtx.clip();
+                }
+            }
+
+            const srcW = srcCanvas.width;
+            const srcH = srcCanvas.height;
+            const srcAspect = srcW / srcH;
+            const dstAspect = dw / dh;
+
+            if (objectFit === 'contain') {
+                let drawW = dw;
+                let drawH = dh;
+                if (srcAspect > dstAspect) {
+                    drawH = Math.max(1, Math.round(dw / srcAspect));
+                } else {
+                    drawW = Math.max(1, Math.round(dh * srcAspect));
+                }
+                const offX = Math.round((dw - drawW) * posX);
+                const offY = Math.round((dh - drawH) * posY);
+                pageCtx.drawImage(srcCanvas, 0, 0, srcW, srcH, dx + offX, dy + offY, drawW, drawH);
+            } else if (objectFit === 'cover') {
+                let sx = 0;
+                let sy = 0;
+                let sw = srcW;
+                let sh = srcH;
+                if (srcAspect > dstAspect) {
+                    sw = Math.max(1, srcH * dstAspect);
+                    sx = (srcW - sw) * posX;
+                } else {
+                    sh = Math.max(1, srcW / dstAspect);
+                    sy = (srcH - sh) * posY;
+                }
+                pageCtx.drawImage(srcCanvas, sx, sy, sw, sh, dx, dy, dw, dh);
+            } else if (objectFit === 'none' || objectFit === 'scale-down') {
+                const natW = parseFloat(slot.getAttribute('data-pdf-nat-w') || '0') || srcW;
+                const natH = parseFloat(slot.getAttribute('data-pdf-nat-h') || '0') || srcH;
+                let drawW = Math.max(1, Math.round(natW * scale));
+                let drawH = Math.max(1, Math.round(natH * scale));
+                if (objectFit === 'scale-down' && (drawW > dw || drawH > dh)) {
+                    if (srcAspect > dstAspect) {
+                        drawW = dw;
+                        drawH = Math.max(1, Math.round(dw / srcAspect));
+                    } else {
+                        drawH = dh;
+                        drawW = Math.max(1, Math.round(dh * srcAspect));
+                    }
+                }
+                const offX = Math.round((dw - drawW) * posX);
+                const offY = Math.round((dh - drawH) * posY);
+                pageCtx.drawImage(srcCanvas, 0, 0, srcW, srcH, dx + offX, dy + offY, drawW, drawH);
+            } else {
+                pageCtx.drawImage(srcCanvas, 0, 0, srcW, srcH, dx, dy, dw, dh);
+            }
+
+            if (needsSave) {
+                pageCtx.restore();
+            }
         }
         pageCtx.restore();
     }
@@ -4662,7 +4946,11 @@ export default class PdfPlugin extends Plugin {
             el.classList.contains('image-embed') ||
             el.classList.contains('media-embed') ||
             el.classList.contains('math') ||
-            el.classList.contains('mermaid')
+            el.classList.contains('mermaid') ||
+            el.classList.contains('block-language-image-layout') ||
+            el.classList.contains('image-layouts') ||
+            el.classList.contains('switchable-layout') ||
+            el.classList.contains('carousel')
         ) {
             return true;
         }
@@ -5559,12 +5847,21 @@ export default class PdfPlugin extends Plugin {
         }
 
         // 6. Split generic multi-block wrapper <div> (e.g. indented HTML/plugin containers wrapping multiple blocks)
+        // Never split visual layout widgets (image carousels, grids, masonry, horizontal flex/grid containers).
+        const isHorizontalOrGridLayout =
+            targetCs.display.includes('grid') ||
+            (targetCs.display.includes('flex') && (targetCs.flexDirection === 'row' || targetCs.flexDirection === 'row-reverse'));
         if (
             target.tagName === 'DIV' &&
+            !isHorizontalOrGridLayout &&
             !target.classList.contains('mermaid') &&
             !target.classList.contains('math-block') &&
             !target.classList.contains('pdf-image-slot') &&
-            !target.querySelector(':scope > svg, :scope > canvas')
+            !target.classList.contains('block-language-image-layout') &&
+            !target.classList.contains('image-layouts') &&
+            !target.classList.contains('switchable-layout') &&
+            !target.classList.contains('carousel') &&
+            !target.querySelector(':scope > svg, :scope > canvas, :scope > .switchable-layout, :scope > .image-layouts, :scope > .carousel')
         ) {
             const divChildren = Array.from(target.children).filter(
                 (c): c is HTMLElement =>
@@ -11117,9 +11414,10 @@ export default class PdfPlugin extends Plugin {
             setRootLayout(layout);
             measureWrapper.remove();
 
-            // Release the hidden MarkdownView early once all blocks have been extracted & paginated
-            try { cleanupRealView?.(); } catch { /* ignore */ }
-            cleanupRealView = null;
+            // Keep cleanupRealView alive until the finally block after all pages are captured:
+            // unloading MarkdownView early triggers MarkdownRenderChild.onunload() (e.g. Svelte/React
+            // community plugins like obsidian-image-layouts), which would destroy their DOM out of
+            // pages[i].elements before page capture runs.
 
             // Ensure at least 1 blank page if note is completely empty
             if (pages.length === 0) {
@@ -11678,7 +11976,7 @@ export default class PdfPlugin extends Plugin {
 
                     if (!pageCanvas) {
                         // Seamless fallback to html2canvas for this page (and remaining pages if platform unsupported)
-                        const rawCanvas = await this.captureElementToCanvas(
+                        let rawCanvas = await this.captureElementToCanvas(
                             batchWrapper,
                             renderRoot,
                             bgHex,
@@ -11691,6 +11989,29 @@ export default class PdfPlugin extends Plugin {
                         pageCanvas = this.toOpaqueCanvas(rawCanvas, bgHex);
                         rawCanvas.width = 0;
                         rawCanvas.height = 0;
+
+                        // Defensive blank-page guard on html2canvas fallback (retries once if WebView dropped a frame)
+                        const fallbackHasText = (mounted.pageWrapper.textContent || '').trim().length > 0;
+                        const fallbackCtx = pageCanvas.getContext('2d');
+                        if (fallbackHasText && fallbackCtx && !this.canvasHasNonBgPixels(fallbackCtx, pageCanvas.width, pageCanvas.height, bgColor)) {
+                            await new Promise<void>(r => window.setTimeout(r, 60));
+                            await this.yieldFrameSafe(32);
+                            pageCanvas.width = 0;
+                            pageCanvas.height = 0;
+                            rawCanvas = await this.captureElementToCanvas(
+                                batchWrapper,
+                                renderRoot,
+                                bgHex,
+                                captureScale,
+                                pageContentWidthPx,
+                                colorCache,
+                                fontCache,
+                                imageCanvasesById
+                            );
+                            pageCanvas = this.toOpaqueCanvas(rawCanvas, bgHex);
+                            rawCanvas.width = 0;
+                            rawCanvas.height = 0;
+                        }
                     }
 
                     if (shouldCancel?.()) {
