@@ -87,13 +87,13 @@
     --hr-color: #d4d4d8;
 }
 
-.pdf-export-root.pdf-custom-font,
-.pdf-export-root.pdf-custom-font .markdown-preview-view,
-.pdf-export-root.pdf-custom-font .markdown-rendered,
-.pdf-export-root.pdf-custom-font .inline-title {
-    --font-text: var(--pdf-custom-font-family) !important;
-    --font-interface: var(--pdf-custom-font-family) !important;
-    font-family: var(--pdf-custom-font-family) !important;
+body .pdf-export-root.pdf-export-root.pdf-custom-font,
+body .pdf-export-root.pdf-export-root.pdf-custom-font .markdown-preview-view,
+body .pdf-export-root.pdf-export-root.pdf-custom-font .markdown-rendered,
+body .pdf-export-root.pdf-export-root.pdf-custom-font .inline-title {
+    --font-text: var(--pdf-custom-font-family);
+    --font-interface: var(--pdf-custom-font-family);
+    font-family: var(--pdf-custom-font-family);
 }
 
 :where(.pdf-export-root .pdf-export-title) {
@@ -107,113 +107,113 @@
     word-break: break-word;
 }
 
-.pdf-export-root .mod-header {
-    margin-top: 0 !important;
-    margin-bottom: 28px !important;
+body .pdf-export-root.pdf-export-root .mod-header {
+    margin-top: 0;
+    margin-bottom: 28px;
 }
 
-.pdf-export-root .mod-header .pdf-export-title {
-    margin-top: 0 !important;
-    margin-bottom: 0 !important;
+body .pdf-export-root.pdf-export-root .mod-header .pdf-export-title {
+    margin-top: 0;
+    margin-bottom: 0;
 }
 
-.pdf-export-root .pdf-frontmatter-card {
-    margin: 0 0 18px 0 !important;
-    padding: 10px 14px !important;
-    border: 1px solid rgba(0, 0, 0, 0.14) !important;
-    border-radius: 6px !important;
-    background-color: rgba(0, 0, 0, 0.025) !important;
-    font-size: 0.88em !important;
-    line-height: 1.45 !important;
-    box-sizing: border-box !important;
-    width: 100% !important;
+body .pdf-export-root.pdf-export-root .pdf-frontmatter-card {
+    margin: 0 0 18px 0;
+    padding: 10px 14px;
+    border: 1px solid rgba(0, 0, 0, 0.14);
+    border-radius: 6px;
+    background-color: rgba(0, 0, 0, 0.025);
+    font-size: 0.88em;
+    line-height: 1.45;
+    box-sizing: border-box;
+    width: 100%;
 }
 
-.pdf-export-root.pdf-mode-dark .pdf-frontmatter-card {
-    border-color: rgba(255, 255, 255, 0.16) !important;
-    background-color: rgba(255, 255, 255, 0.04) !important;
+body .pdf-export-root.pdf-export-root.pdf-mode-dark .pdf-frontmatter-card {
+    border-color: rgba(255, 255, 255, 0.16);
+    background-color: rgba(255, 255, 255, 0.04);
 }
 
-.pdf-export-root .pdf-frontmatter-title {
-    font-size: 0.82em !important;
-    font-weight: 700 !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.05em !important;
-    color: rgba(0, 0, 0, 0.55) !important;
-    margin: 0 0 8px 0 !important;
-    padding-bottom: 5px !important;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.09) !important;
+body .pdf-export-root.pdf-export-root .pdf-frontmatter-title {
+    font-size: 0.82em;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: rgba(0, 0, 0, 0.55);
+    margin: 0 0 8px 0;
+    padding-bottom: 5px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.09);
 }
 
-.pdf-export-root.pdf-mode-dark .pdf-frontmatter-title {
-    color: rgba(255, 255, 255, 0.65) !important;
-    border-bottom-color: rgba(255, 255, 255, 0.10) !important;
+body .pdf-export-root.pdf-export-root.pdf-mode-dark .pdf-frontmatter-title {
+    color: rgba(255, 255, 255, 0.65);
+    border-bottom-color: rgba(255, 255, 255, 0.10);
 }
 
-.pdf-export-root .pdf-frontmatter-grid {
-    display: table !important;
-    width: 100% !important;
-    border-collapse: collapse !important;
+body .pdf-export-root.pdf-export-root .pdf-frontmatter-grid {
+    display: table;
+    width: 100%;
+    border-collapse: collapse;
 }
 
-.pdf-export-root .pdf-frontmatter-row {
-    display: table-row !important;
+body .pdf-export-root.pdf-export-root .pdf-frontmatter-row {
+    display: table-row;
 }
 
-.pdf-export-root .pdf-frontmatter-key {
-    display: table-cell !important;
-    width: 28% !important;
-    padding: 3px 10px 3px 0 !important;
-    font-weight: 600 !important;
-    color: rgba(0, 0, 0, 0.65) !important;
-    vertical-align: top !important;
-    word-break: normal !important;
-    overflow-wrap: break-word !important;
+body .pdf-export-root.pdf-export-root .pdf-frontmatter-key {
+    display: table-cell;
+    width: 28%;
+    padding: 3px 10px 3px 0;
+    font-weight: 600;
+    color: rgba(0, 0, 0, 0.65);
+    vertical-align: top;
+    word-break: normal;
+    overflow-wrap: break-word;
 }
 
-.pdf-export-root.pdf-mode-dark .pdf-frontmatter-key {
-    color: rgba(255, 255, 255, 0.72) !important;
+body .pdf-export-root.pdf-export-root.pdf-mode-dark .pdf-frontmatter-key {
+    color: rgba(255, 255, 255, 0.72);
 }
 
-.pdf-export-root .pdf-frontmatter-val {
-    display: table-cell !important;
-    padding: 3px 0 !important;
-    color: var(--text-normal, #1f1f1f) !important;
-    vertical-align: top !important;
-    word-break: normal !important;
-    overflow-wrap: break-word !important;
+body .pdf-export-root.pdf-export-root .pdf-frontmatter-val {
+    display: table-cell;
+    padding: 3px 0;
+    color: var(--text-normal, #1f1f1f);
+    vertical-align: top;
+    word-break: normal;
+    overflow-wrap: break-word;
 }
 
-.pdf-export-root.pdf-mode-dark .pdf-frontmatter-val {
-    color: var(--text-normal, #e6e6e6) !important;
+body .pdf-export-root.pdf-export-root.pdf-mode-dark .pdf-frontmatter-val {
+    color: var(--text-normal, #e6e6e6);
 }
 
-.pdf-export-root .pdf-frontmatter-pill {
-    display: inline-block !important;
-    box-sizing: border-box !important;
-    max-width: 100% !important;
-    padding: 1px 7px !important;
-    margin: 1px 5px 2px 0 !important;
-    border-radius: 10px !important;
-    font-size: 0.92em !important;
-    word-break: normal !important;
-    overflow-wrap: break-word !important;
-    background-color: rgba(0, 0, 0, 0.07) !important;
-    border: 1px solid rgba(0, 0, 0, 0.10) !important;
+body .pdf-export-root.pdf-export-root .pdf-frontmatter-pill {
+    display: inline-block;
+    box-sizing: border-box;
+    max-width: 100%;
+    padding: 1px 7px;
+    margin: 1px 5px 2px 0;
+    border-radius: 10px;
+    font-size: 0.92em;
+    word-break: normal;
+    overflow-wrap: break-word;
+    background-color: rgba(0, 0, 0, 0.07);
+    border: 1px solid rgba(0, 0, 0, 0.10);
 }
 
-.pdf-export-root.pdf-mode-dark .pdf-frontmatter-pill {
-    background-color: rgba(255, 255, 255, 0.10) !important;
-    border-color: rgba(255, 255, 255, 0.14) !important;
+body .pdf-export-root.pdf-export-root.pdf-mode-dark .pdf-frontmatter-pill {
+    background-color: rgba(255, 255, 255, 0.10);
+    border-color: rgba(255, 255, 255, 0.14);
 }
 
-.pdf-export-root > .pdf-batch-wrapper {
-    display: block !important;
-    width: var(--pdf-content-width) !important;
-    max-width: var(--pdf-content-width) !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    box-sizing: border-box !important;
+body .pdf-export-root.pdf-export-root > .pdf-batch-wrapper {
+    display: block;
+    width: var(--pdf-content-width);
+    max-width: var(--pdf-content-width);
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
 }
 
 .pdf-export-root.pdf-root-landscape {
@@ -221,97 +221,97 @@
     max-width: var(--pdf-landscape-width);
 }
 
-.pdf-export-root.pdf-root-landscape > .pdf-batch-wrapper {
-    width: var(--pdf-landscape-width) !important;
-    max-width: var(--pdf-landscape-width) !important;
+body .pdf-export-root.pdf-export-root.pdf-root-landscape > .pdf-batch-wrapper {
+    width: var(--pdf-landscape-width);
+    max-width: var(--pdf-landscape-width);
 }
 
-.pdf-export-root > .workspace-leaf,
-.pdf-export-root > .workspace-leaf > .workspace-leaf-content,
-.pdf-export-root > .workspace-leaf > .workspace-leaf-content > .view-content,
-.pdf-export-root > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view,
-.pdf-export-root > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host,
-.pdf-export-root > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .pdf-reading-embed-body,
-.pdf-export-root > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .markdown-embed-content,
-.pdf-export-root > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .markdown-preview-view:not(.pdf-expand-reading-height),
-.pdf-export-root > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .pdf-reading-embed-body > .markdown-preview-view:not(.pdf-expand-reading-height),
-.pdf-export-root > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .markdown-embed-content > .markdown-preview-view:not(.pdf-expand-reading-height),
-.pdf-export-root > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .markdown-preview-view > .markdown-preview-sizer,
-.pdf-export-root > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .pdf-reading-embed-body > .markdown-preview-view > .markdown-preview-sizer,
-.pdf-export-root > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .markdown-embed-content > .markdown-preview-view > .markdown-preview-sizer,
-.pdf-export-root > .workspace-leaf-content,
-.pdf-export-root > .workspace-leaf-content > .view-content,
-.pdf-export-root > .workspace-leaf-content > .view-content > .markdown-reading-view,
-.pdf-export-root > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host,
-.pdf-export-root > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .pdf-reading-embed-body,
-.pdf-export-root > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .markdown-embed-content,
-.pdf-export-root > .workspace-leaf-content > .view-content > .markdown-reading-view > .markdown-preview-view:not(.pdf-expand-reading-height),
-.pdf-export-root > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .pdf-reading-embed-body > .markdown-preview-view:not(.pdf-expand-reading-height),
-.pdf-export-root > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .markdown-embed-content > .markdown-preview-view:not(.pdf-expand-reading-height),
-.pdf-export-root > .workspace-leaf-content > .view-content > .markdown-reading-view > .markdown-preview-view > .markdown-preview-sizer,
-.pdf-export-root > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .pdf-reading-embed-body > .markdown-preview-view > .markdown-preview-sizer,
-.pdf-export-root > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .markdown-embed-content > .markdown-preview-view > .markdown-preview-sizer,
-.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf,
-.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf > .workspace-leaf-content,
-.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf > .workspace-leaf-content > .view-content,
-.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view,
-.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host,
-.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .pdf-reading-embed-body,
-.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .markdown-embed-content,
-.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .markdown-preview-view:not(.pdf-expand-reading-height),
-.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .pdf-reading-embed-body > .markdown-preview-view:not(.pdf-expand-reading-height),
-.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .markdown-embed-content > .markdown-preview-view:not(.pdf-expand-reading-height),
-.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .markdown-preview-view > .markdown-preview-sizer,
-.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .pdf-reading-embed-body > .markdown-preview-view > .markdown-preview-sizer,
-.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .markdown-embed-content > .markdown-preview-view > .markdown-preview-sizer,
-.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf-content,
-.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf-content > .view-content,
-.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf-content > .view-content > .markdown-reading-view,
-.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host,
-.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .pdf-reading-embed-body,
-.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .markdown-embed-content,
-.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf-content > .view-content > .markdown-reading-view > .markdown-preview-view:not(.pdf-expand-reading-height),
-.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .pdf-reading-embed-body > .markdown-preview-view:not(.pdf-expand-reading-height),
-.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .markdown-embed-content > .markdown-preview-view:not(.pdf-expand-reading-height),
-.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf-content > .view-content > .markdown-reading-view > .markdown-preview-view > .markdown-preview-sizer,
-.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .pdf-reading-embed-body > .markdown-preview-view > .markdown-preview-sizer,
-.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .markdown-embed-content > .markdown-preview-view > .markdown-preview-sizer {
-    width: 100% !important;
-    max-width: 100% !important;
+body .pdf-export-root.pdf-export-root > .workspace-leaf,
+body .pdf-export-root.pdf-export-root > .workspace-leaf > .workspace-leaf-content,
+body .pdf-export-root.pdf-export-root > .workspace-leaf > .workspace-leaf-content > .view-content,
+body .pdf-export-root.pdf-export-root > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view,
+body .pdf-export-root.pdf-export-root > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host,
+body .pdf-export-root.pdf-export-root > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .pdf-reading-embed-body,
+body .pdf-export-root.pdf-export-root > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .markdown-embed-content,
+body .pdf-export-root.pdf-export-root > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .markdown-preview-view:not(.pdf-expand-reading-height),
+body .pdf-export-root.pdf-export-root > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .pdf-reading-embed-body > .markdown-preview-view:not(.pdf-expand-reading-height),
+body .pdf-export-root.pdf-export-root > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .markdown-embed-content > .markdown-preview-view:not(.pdf-expand-reading-height),
+body .pdf-export-root.pdf-export-root > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .markdown-preview-view > .markdown-preview-sizer,
+body .pdf-export-root.pdf-export-root > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .pdf-reading-embed-body > .markdown-preview-view > .markdown-preview-sizer,
+body .pdf-export-root.pdf-export-root > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .markdown-embed-content > .markdown-preview-view > .markdown-preview-sizer,
+body .pdf-export-root.pdf-export-root > .workspace-leaf-content,
+body .pdf-export-root.pdf-export-root > .workspace-leaf-content > .view-content,
+body .pdf-export-root.pdf-export-root > .workspace-leaf-content > .view-content > .markdown-reading-view,
+body .pdf-export-root.pdf-export-root > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host,
+body .pdf-export-root.pdf-export-root > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .pdf-reading-embed-body,
+body .pdf-export-root.pdf-export-root > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .markdown-embed-content,
+body .pdf-export-root.pdf-export-root > .workspace-leaf-content > .view-content > .markdown-reading-view > .markdown-preview-view:not(.pdf-expand-reading-height),
+body .pdf-export-root.pdf-export-root > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .pdf-reading-embed-body > .markdown-preview-view:not(.pdf-expand-reading-height),
+body .pdf-export-root.pdf-export-root > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .markdown-embed-content > .markdown-preview-view:not(.pdf-expand-reading-height),
+body .pdf-export-root.pdf-export-root > .workspace-leaf-content > .view-content > .markdown-reading-view > .markdown-preview-view > .markdown-preview-sizer,
+body .pdf-export-root.pdf-export-root > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .pdf-reading-embed-body > .markdown-preview-view > .markdown-preview-sizer,
+body .pdf-export-root.pdf-export-root > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .markdown-embed-content > .markdown-preview-view > .markdown-preview-sizer,
+body .pdf-export-root.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf,
+body .pdf-export-root.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf > .workspace-leaf-content,
+body .pdf-export-root.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf > .workspace-leaf-content > .view-content,
+body .pdf-export-root.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view,
+body .pdf-export-root.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host,
+body .pdf-export-root.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .pdf-reading-embed-body,
+body .pdf-export-root.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .markdown-embed-content,
+body .pdf-export-root.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .markdown-preview-view:not(.pdf-expand-reading-height),
+body .pdf-export-root.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .pdf-reading-embed-body > .markdown-preview-view:not(.pdf-expand-reading-height),
+body .pdf-export-root.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .markdown-embed-content > .markdown-preview-view:not(.pdf-expand-reading-height),
+body .pdf-export-root.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .markdown-preview-view > .markdown-preview-sizer,
+body .pdf-export-root.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .pdf-reading-embed-body > .markdown-preview-view > .markdown-preview-sizer,
+body .pdf-export-root.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .markdown-embed-content > .markdown-preview-view > .markdown-preview-sizer,
+body .pdf-export-root.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf-content,
+body .pdf-export-root.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf-content > .view-content,
+body .pdf-export-root.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf-content > .view-content > .markdown-reading-view,
+body .pdf-export-root.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host,
+body .pdf-export-root.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .pdf-reading-embed-body,
+body .pdf-export-root.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .markdown-embed-content,
+body .pdf-export-root.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf-content > .view-content > .markdown-reading-view > .markdown-preview-view:not(.pdf-expand-reading-height),
+body .pdf-export-root.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .pdf-reading-embed-body > .markdown-preview-view:not(.pdf-expand-reading-height),
+body .pdf-export-root.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .markdown-embed-content > .markdown-preview-view:not(.pdf-expand-reading-height),
+body .pdf-export-root.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf-content > .view-content > .markdown-reading-view > .markdown-preview-view > .markdown-preview-sizer,
+body .pdf-export-root.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .pdf-reading-embed-body > .markdown-preview-view > .markdown-preview-sizer,
+body .pdf-export-root.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf-content > .view-content > .markdown-reading-view > .pdf-reading-host > .markdown-embed-content > .markdown-preview-view > .markdown-preview-sizer {
+    width: 100%;
+    max-width: 100%;
     min-height: 0;
-    height: auto !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    overflow: visible !important;
-    border: none !important;
-    box-shadow: none !important;
-    --file-line-width: 100% !important;
-    --file-margins: 0px !important;
-    background-color: transparent !important;
+    height: auto;
+    padding: 0;
+    margin: 0;
+    overflow: visible;
+    border: none;
+    box-shadow: none;
+    --file-line-width: 100%;
+    --file-margins: 0px;
+    background-color: transparent;
     color: inherit;
 }
 
-.pdf-export-root > .workspace-leaf,
-.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf {
-    display: block !important;
-    position: relative !important;
-    contain: none !important;
+body .pdf-export-root.pdf-export-root > .workspace-leaf,
+body .pdf-export-root.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf {
+    display: block;
+    position: relative;
+    contain: none;
 }
 
-.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf {
-    margin-bottom: 12px !important;
+body .pdf-export-root.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf {
+    margin-bottom: 12px;
 }
 
-.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf:last-child {
-    margin-bottom: 0 !important;
+body .pdf-export-root.pdf-export-root > .pdf-batch-wrapper > .workspace-leaf:last-child {
+    margin-bottom: 0;
 }
 
 .pdf-export-root .markdown-preview-sizer {
     display: flow-root;
 }
 
-.pdf-export-root .markdown-preview-sizer > * {
-    content-visibility: visible !important;
+body .pdf-export-root.pdf-export-root .markdown-preview-sizer > * {
+    content-visibility: visible;
 }
 
 .pdf-export-root .pdf-image-slot-css-sized {
@@ -319,52 +319,52 @@
     max-height: 100%;
 }
 
-.pdf-export-root .view-header,
-.pdf-export-root .workspace-leaf-resize-handle,
-.pdf-export-root .markdown-source-view,
-.pdf-export-root .markdown-preview-pusher {
-    display: none !important;
+body .pdf-export-root.pdf-export-root .view-header,
+body .pdf-export-root.pdf-export-root .workspace-leaf-resize-handle,
+body .pdf-export-root.pdf-export-root .markdown-source-view,
+body .pdf-export-root.pdf-export-root .markdown-preview-pusher {
+    display: none;
 }
 
-.pdf-export-root .copy-code-button,
-.pdf-export-root .edit-block-button,
-.pdf-export-root .collapse-indicator,
-.pdf-export-root .heading-collapse-indicator,
-.pdf-export-root .list-collapse-indicator,
-.pdf-export-root .markdown-embed-link,
-.pdf-export-root .file-embed-link,
-.pdf-export-root .metadata-container,
-.pdf-export-root .frontmatter,
-.pdf-export-root .mermaid button,
-.pdf-export-root .block-language-mermaid button,
-.pdf-export-root .mermaid .clickable-icon,
-.pdf-export-root .block-language-mermaid .clickable-icon,
-.pdf-export-root [class*="mermaid"] button,
-.pdf-export-root [class*="diagram-zoom"] button,
-.pdf-export-root .diagram-zoom-drag-controls,
-.pdf-export-root .dzd-controls,
-.pdf-export-root .dzd-toolbar,
-.pdf-export-root .mermaid-toolbar,
-.pdf-export-root .mermaid-controls,
-.pdf-export-root .mermaid-zoom-buttons,
-.pdf-export-root .zoom-controls,
-.pdf-export-root .pan-zoom-controls,
-.pdf-export-root .switchable-layout .switch-button {
-    display: none !important;
+body .pdf-export-root.pdf-export-root .copy-code-button,
+body .pdf-export-root.pdf-export-root .edit-block-button,
+body .pdf-export-root.pdf-export-root .collapse-indicator,
+body .pdf-export-root.pdf-export-root .heading-collapse-indicator,
+body .pdf-export-root.pdf-export-root .list-collapse-indicator,
+body .pdf-export-root.pdf-export-root .markdown-embed-link,
+body .pdf-export-root.pdf-export-root .file-embed-link,
+body .pdf-export-root.pdf-export-root .metadata-container,
+body .pdf-export-root.pdf-export-root .frontmatter,
+body .pdf-export-root.pdf-export-root .mermaid button,
+body .pdf-export-root.pdf-export-root .block-language-mermaid button,
+body .pdf-export-root.pdf-export-root .mermaid .clickable-icon,
+body .pdf-export-root.pdf-export-root .block-language-mermaid .clickable-icon,
+body .pdf-export-root.pdf-export-root [class*="mermaid"] button,
+body .pdf-export-root.pdf-export-root [class*="diagram-zoom"] button,
+body .pdf-export-root.pdf-export-root .diagram-zoom-drag-controls,
+body .pdf-export-root.pdf-export-root .dzd-controls,
+body .pdf-export-root.pdf-export-root .dzd-toolbar,
+body .pdf-export-root.pdf-export-root .mermaid-toolbar,
+body .pdf-export-root.pdf-export-root .mermaid-controls,
+body .pdf-export-root.pdf-export-root .mermaid-zoom-buttons,
+body .pdf-export-root.pdf-export-root .zoom-controls,
+body .pdf-export-root.pdf-export-root .pan-zoom-controls,
+body .pdf-export-root.pdf-export-root .switchable-layout .switch-button {
+    display: none;
 }
 
-.pdf-export-root pre,
-.pdf-export-root code {
-    white-space: pre-wrap !important;
-    word-break: break-word !important;
-    overflow-wrap: anywhere !important;
-    max-height: none !important;
-    overflow: visible !important;
+body .pdf-export-root.pdf-export-root pre,
+body .pdf-export-root.pdf-export-root code {
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    max-height: none;
+    overflow: visible;
 }
 
-.pdf-export-root pre {
-    box-sizing: border-box !important;
-    max-width: 100% !important;
+body .pdf-export-root.pdf-export-root pre {
+    box-sizing: border-box;
+    max-width: 100%;
 }
 
 :where(.pdf-export-root pre) {
@@ -372,20 +372,20 @@
     border-radius: 6px;
 }
 
-.pdf-export-root::-webkit-scrollbar,
-.pdf-export-root *::-webkit-scrollbar {
-    display: none !important;
-    width: 0 !important;
-    height: 0 !important;
+body .pdf-export-root.pdf-export-root::-webkit-scrollbar,
+body .pdf-export-root.pdf-export-root *::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
 }
 
-.pdf-export-root table,
-.pdf-export-root .el-table,
-.pdf-export-root .table-wrapper,
-.pdf-export-root .math-block,
-.pdf-export-root .MathJax {
-    overflow-x: visible !important;
-    overflow-y: visible !important;
+body .pdf-export-root.pdf-export-root table,
+body .pdf-export-root.pdf-export-root .el-table,
+body .pdf-export-root.pdf-export-root .table-wrapper,
+body .pdf-export-root.pdf-export-root .math-block,
+body .pdf-export-root.pdf-export-root .MathJax {
+    overflow-x: visible;
+    overflow-y: visible;
 }
 
 :where(.pdf-export-root table) {
@@ -403,12 +403,12 @@
     text-align: start;
 }
 
-.pdf-export-root .callout,
-.pdf-export-root blockquote,
-.pdf-export-root .markdown-embed,
-.pdf-export-root .markdown-embed-content {
-    max-height: none !important;
-    overflow: visible !important;
+body .pdf-export-root.pdf-export-root .callout,
+body .pdf-export-root.pdf-export-root blockquote,
+body .pdf-export-root.pdf-export-root .markdown-embed,
+body .pdf-export-root.pdf-export-root .markdown-embed-content {
+    max-height: none;
+    overflow: visible;
 }
 
 :where(.pdf-export-root img) {
@@ -424,12 +424,12 @@
     max-width: 100%;
 }
 
-.pdf-export-root .pdf-image-slot {
-    background: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
-    padding: 0 !important;
-    box-sizing: border-box !important;
+body .pdf-export-root.pdf-export-root .pdf-image-slot {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    box-sizing: border-box;
 }
 
 .pdf-export-root .pdf-image-slot.pdf-image-slot-inline {
@@ -444,11 +444,11 @@
     margin: 0;
 }
 
-.pdf-export-root .pdf-tall-fitted-svg {
-    max-width: 100% !important;
-    display: block !important;
-    margin-left: auto !important;
-    margin-right: auto !important;
+body .pdf-export-root.pdf-export-root .pdf-tall-fitted-svg {
+    max-width: 100%;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .pdf-export-root .pdf-tall-fitted-media {
@@ -456,25 +456,26 @@
     margin: 0 auto;
 }
 
-.pdf-export-root .pdf-table-measure {
-    width: max-content !important;
-    max-width: none !important;
-    table-layout: auto !important;
+body .pdf-export-root.pdf-export-root .pdf-table-measure.pdf-table-measure {
+    width: max-content;
+    max-width: none;
+    table-layout: auto;
 }
 
 .pdf-export-root .pdf-img-clamped {
     max-width: 100%;
 }
 
-.pdf-capture-visible {
-    opacity: 1 !important;
-    visibility: visible !important;
+body .pdf-capture-visible.pdf-capture-visible {
+    opacity: 1;
+    visibility: visible;
 }
 
-.pdf-capture-root-clean {
-    background-image: none !important;
-    box-shadow: none !important;
-    text-shadow: none !important;
+html.pdf-capture-root-clean.pdf-capture-root-clean,
+body.pdf-capture-root-clean.pdf-capture-root-clean {
+    background-image: none;
+    box-shadow: none;
+    text-shadow: none;
 }
 
 .pdf-vector-checkbox {
@@ -498,44 +499,45 @@
     list-style: none;
 }
 
-.pdf-export-root .pdf-expand-reading-height,
-.pdf-export-root .markdown-preview-view.pdf-expand-reading-height {
-    width: 100% !important;
-    max-width: 100% !important;
-    height: 100000px !important;
-    min-height: 100000px !important;
-    max-height: none !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    overflow-y: auto !important;
-    overflow-x: visible !important;
-    border: none !important;
-    box-shadow: none !important;
-    --file-line-width: 100% !important;
-    --file-margins: 0px !important;
-    background-color: transparent !important;
+body .pdf-export-root.pdf-export-root .pdf-expand-reading-height,
+body .pdf-export-root.pdf-export-root .markdown-preview-view.pdf-expand-reading-height {
+    width: 100%;
+    max-width: 100%;
+    height: 100000px;
+    min-height: 100000px;
+    max-height: none;
+    padding: 0;
+    margin: 0;
+    overflow-y: auto;
+    overflow-x: visible;
+    border: none;
+    box-shadow: none;
+    --file-line-width: 100%;
+    --file-margins: 0px;
+    background-color: transparent;
 }
 
-.pdf-export-root.pdf-disable-links a:not(.tag),
-.pdf-export-root.pdf-disable-links a.external-link,
-.pdf-export-root.pdf-disable-links a.internal-link,
-.pdf-export-root.pdf-disable-links a.footnote-link {
-    color: inherit !important;
-    text-decoration: none !important;
-    border-bottom: none !important;
-    background-image: none !important;
-    padding-right: 0 !important;
-    cursor: default !important;
+body .pdf-export-root.pdf-export-root.pdf-disable-links a:not(.tag),
+body .pdf-export-root.pdf-export-root.pdf-disable-links a.external-link,
+body .pdf-export-root.pdf-export-root.pdf-disable-links a.internal-link,
+body .pdf-export-root.pdf-export-root.pdf-disable-links a.footnote-link {
+    color: inherit;
+    text-decoration: none;
+    border-bottom: none;
+    background-image: none;
+    padding-right: 0;
+    cursor: default;
 }
 
-.pdf-export-root.pdf-disable-links a.external-link::after,
-.pdf-export-root.pdf-disable-links a.external-link::before {
-    display: none !important;
-    content: none !important;
+body .pdf-export-root.pdf-export-root.pdf-disable-links a.external-link::after,
+body .pdf-export-root.pdf-export-root.pdf-disable-links a.external-link::before {
+    display: none;
+    content: none;
 }
 
-.pdf-hidden {
-    display: none !important;
+body .pdf-hidden.pdf-hidden.pdf-hidden,
+body .pdf-settings-card .pdf-settings-card-body .pdf-hidden.pdf-hidden {
+    display: none;
 }
 
 /* --------------------------------------------------------------------------
@@ -779,11 +781,11 @@
     box-sizing: border-box;
 }
 
-.pdf-settings-card-body .setting-item {
+body .pdf-settings-card .pdf-settings-card-body .setting-item {
     border-top: 1px solid var(--background-modifier-border);
-    margin: 0 !important;
-    padding: 14px 22px 14px 26px !important;
-    box-sizing: border-box !important;
+    margin: 0;
+    padding: 14px 22px 14px 26px;
+    box-sizing: border-box;
 }
 
 .theme-dark .pdf-settings-card-body .setting-item {
@@ -794,18 +796,18 @@
     border-top-color: rgba(0, 0, 0, 0.06);
 }
 
-.pdf-settings-card-body > .setting-item:first-child {
-    border-top: none !important;
+body .pdf-settings-card .pdf-settings-card-body > .setting-item:first-child {
+    border-top: none;
 }
 
 /* --------------------------------------------------------------------------
    4b. PDF Settings Sidebar View
    -------------------------------------------------------------------------- */
 
-.pdf-sidebar-root {
+body .pdf-sidebar-root.pdf-sidebar-root {
     overflow-x: hidden;
-    padding: 14px 16px 20px 16px !important;
-    box-sizing: border-box !important;
+    padding: 14px 16px 20px 16px;
+    box-sizing: border-box;
 }
 
 .pdf-sidebar-root .pdf-defaults-bar {
@@ -873,54 +875,54 @@
     font-size: 13px;
 }
 
-.pdf-sidebar-root .pdf-settings-card-body .setting-item {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: stretch !important;
-    gap: 6px !important;
-    padding: 12px 18px 12px 22px !important;
-    margin: 0 !important;
-    box-sizing: border-box !important;
+body .pdf-sidebar-root.pdf-sidebar-root .pdf-settings-card-body .setting-item {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+    padding: 12px 18px 12px 22px;
+    margin: 0;
+    box-sizing: border-box;
 }
 
-.pdf-sidebar-root .setting-item-info {
-    width: 100% !important;
-    max-width: 100% !important;
-    margin-right: 0 !important;
-    padding-right: 0 !important;
-    flex: none !important;
-    box-sizing: border-box !important;
+body .pdf-sidebar-root.pdf-sidebar-root .setting-item-info {
+    width: 100%;
+    max-width: 100%;
+    margin-right: 0;
+    padding-right: 0;
+    flex: none;
+    box-sizing: border-box;
 }
 
-.pdf-sidebar-root .setting-item-name,
-.pdf-sidebar-root .setting-item-description {
-    white-space: normal !important;
-    word-break: normal !important;
-    overflow-wrap: break-word !important;
+body .pdf-sidebar-root.pdf-sidebar-root .setting-item-name,
+body .pdf-sidebar-root.pdf-sidebar-root .setting-item-description {
+    white-space: normal;
+    word-break: normal;
+    overflow-wrap: break-word;
 }
 
-.pdf-sidebar-root .setting-item-control {
-    width: 100% !important;
-    max-width: 100% !important;
-    justify-content: flex-start !important;
-    flex-wrap: wrap !important;
-    gap: 6px !important;
-    margin-top: 2px !important;
-    box-sizing: border-box !important;
+body .pdf-sidebar-root.pdf-sidebar-root .setting-item-control {
+    width: 100%;
+    max-width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 2px;
+    box-sizing: border-box;
 }
 
-.pdf-sidebar-root .setting-item-control select,
-.pdf-sidebar-root .setting-item-control input[type="text"],
-.pdf-sidebar-root .setting-item-control input[type="number"],
-.pdf-sidebar-root .setting-item-control textarea {
-    width: 100% !important;
-    max-width: 100% !important;
-    box-sizing: border-box !important;
+body .pdf-sidebar-root.pdf-sidebar-root .setting-item-control select,
+body .pdf-sidebar-root.pdf-sidebar-root .setting-item-control input[type="text"],
+body .pdf-sidebar-root.pdf-sidebar-root .setting-item-control input[type="number"],
+body .pdf-sidebar-root.pdf-sidebar-root .setting-item-control textarea {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
-.pdf-sidebar-root .setting-item-control input[type="range"] {
-    flex: 1 1 140px !important;
-    min-width: 120px !important;
+body .pdf-sidebar-root.pdf-sidebar-root .setting-item-control input[type="range"] {
+    flex: 1 1 140px;
+    min-width: 120px;
 }
 
 .pdf-sidebar-root .pdf-generate-wrap {
@@ -1008,17 +1010,17 @@
     font-size: 13px;
 }
 
-.pdf-sidebar-root .pdf-bookmark-level-item input[type="checkbox"] {
-    width: var(--checkbox-size, 18px) !important;
-    min-width: var(--checkbox-size, 18px) !important;
-    max-width: var(--checkbox-size, 18px) !important;
-    height: var(--checkbox-size, 18px) !important;
-    min-height: var(--checkbox-size, 18px) !important;
-    max-height: var(--checkbox-size, 18px) !important;
-    flex: 0 0 var(--checkbox-size, 18px) !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    box-sizing: border-box !important;
+body .pdf-sidebar-root.pdf-sidebar-root .pdf-bookmark-level-item input[type="checkbox"] {
+    width: var(--checkbox-size, 18px);
+    min-width: var(--checkbox-size, 18px);
+    max-width: var(--checkbox-size, 18px);
+    height: var(--checkbox-size, 18px);
+    min-height: var(--checkbox-size, 18px);
+    max-height: var(--checkbox-size, 18px);
+    flex: 0 0 var(--checkbox-size, 18px);
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
     cursor: pointer;
 }
 
@@ -1180,8 +1182,8 @@
     margin-bottom: 18px;
 }
 
-.pdf-settings-tab-root .pdf-settings-card-body .setting-item {
-    padding: 15px 22px 15px 28px !important;
+body .pdf-settings-tab-root.pdf-settings-tab-root .pdf-settings-card-body .setting-item {
+    padding: 15px 22px 15px 28px;
 }
 
 .pdf-settings-tab-root .pdf-settings-card-body .setting-item-info {
@@ -1222,31 +1224,31 @@
     min-width: 0;
 }
 
-.pdf-bookmark-level-item input[type="checkbox"],
-.setting-item-control .pdf-bookmark-level-item input[type="checkbox"],
-.pdf-settings-tab-root .setting-item-control .pdf-bookmark-level-item input[type="checkbox"],
-.is-mobile .setting-item-control .pdf-bookmark-level-item input[type="checkbox"] {
-    width: var(--checkbox-size, 18px) !important;
-    min-width: var(--checkbox-size, 18px) !important;
-    max-width: var(--checkbox-size, 18px) !important;
-    height: var(--checkbox-size, 18px) !important;
-    min-height: var(--checkbox-size, 18px) !important;
-    max-height: var(--checkbox-size, 18px) !important;
-    flex: 0 0 var(--checkbox-size, 18px) !important;
-    margin: 0 !important;
-    margin-inline-start: 0 !important;
-    margin-inline-end: 0 !important;
-    padding: 0 !important;
-    box-sizing: border-box !important;
+body .pdf-bookmark-level-item.pdf-bookmark-level-item input[type="checkbox"],
+body .setting-item-control .pdf-bookmark-level-item.pdf-bookmark-level-item input[type="checkbox"],
+body .pdf-settings-tab-root.pdf-settings-tab-root .setting-item-control .pdf-bookmark-level-item input[type="checkbox"],
+body.is-mobile .setting-item-control .pdf-bookmark-level-item.pdf-bookmark-level-item input[type="checkbox"] {
+    width: var(--checkbox-size, 18px);
+    min-width: var(--checkbox-size, 18px);
+    max-width: var(--checkbox-size, 18px);
+    height: var(--checkbox-size, 18px);
+    min-height: var(--checkbox-size, 18px);
+    max-height: var(--checkbox-size, 18px);
+    flex: 0 0 var(--checkbox-size, 18px);
+    margin: 0;
+    margin-inline-start: 0;
+    margin-inline-end: 0;
+    padding: 0;
+    box-sizing: border-box;
     cursor: pointer;
 }
 
-.pdf-settings-tab-root.pdf-settings-tab-mobile,
-.is-mobile .pdf-settings-tab-root {
-    padding-left: 16px !important;
-    padding-right: 16px !important;
-    padding-bottom: calc(36px + var(--safe-area-inset-bottom, 0px)) !important;
-    box-sizing: border-box !important;
+body .pdf-settings-tab-root.pdf-settings-tab-root.pdf-settings-tab-mobile,
+body.is-mobile .pdf-settings-tab-root.pdf-settings-tab-root {
+    padding-left: 16px;
+    padding-right: 16px;
+    padding-bottom: calc(36px + var(--safe-area-inset-bottom, 0px));
+    box-sizing: border-box;
 }
 
 .pdf-settings-tab-root.pdf-settings-tab-mobile > .pdf-settings-card:first-child,
@@ -1254,222 +1256,222 @@
     margin-top: 12px;
 }
 
-.pdf-settings-tab-root.pdf-settings-tab-mobile .pdf-settings-card-header,
-.is-mobile .pdf-settings-tab-root .pdf-settings-card-header {
-    padding: 13px 20px 11px 22px !important;
+body .pdf-settings-tab-root.pdf-settings-tab-root.pdf-settings-tab-mobile .pdf-settings-card-header,
+body.is-mobile .pdf-settings-tab-root.pdf-settings-tab-root .pdf-settings-card-header {
+    padding: 13px 20px 11px 22px;
 }
 
-.pdf-settings-tab-root.pdf-settings-tab-mobile .pdf-settings-card-body .setting-item,
-.is-mobile .pdf-settings-tab-root .pdf-settings-card-body .setting-item {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: stretch !important;
-    gap: 8px !important;
-    padding: 14px 20px 14px 24px !important;
-    margin: 0 !important;
-    box-sizing: border-box !important;
+body .pdf-settings-tab-root.pdf-settings-tab-root.pdf-settings-tab-mobile .pdf-settings-card-body .setting-item,
+body.is-mobile .pdf-settings-tab-root.pdf-settings-tab-root .pdf-settings-card-body .setting-item {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding: 14px 20px 14px 24px;
+    margin: 0;
+    box-sizing: border-box;
 }
 
-.pdf-settings-tab-root.pdf-settings-tab-mobile .setting-item-info,
-.is-mobile .pdf-settings-tab-root .setting-item-info {
-    width: 100% !important;
-    max-width: 100% !important;
-    margin-right: 0 !important;
-    padding-right: 0 !important;
-    flex: none !important;
-    box-sizing: border-box !important;
+body .pdf-settings-tab-root.pdf-settings-tab-root.pdf-settings-tab-mobile .setting-item-info,
+body.is-mobile .pdf-settings-tab-root.pdf-settings-tab-root .setting-item-info {
+    width: 100%;
+    max-width: 100%;
+    margin-right: 0;
+    padding-right: 0;
+    flex: none;
+    box-sizing: border-box;
 }
 
-.pdf-settings-tab-root.pdf-settings-tab-mobile .setting-item-name,
-.pdf-settings-tab-root.pdf-settings-tab-mobile .setting-item-description,
-.is-mobile .pdf-settings-tab-root .setting-item-name,
-.is-mobile .pdf-settings-tab-root .setting-item-description {
-    white-space: normal !important;
-    word-break: normal !important;
-    overflow-wrap: break-word !important;
+body .pdf-settings-tab-root.pdf-settings-tab-root.pdf-settings-tab-mobile .setting-item-name,
+body .pdf-settings-tab-root.pdf-settings-tab-root.pdf-settings-tab-mobile .setting-item-description,
+body.is-mobile .pdf-settings-tab-root.pdf-settings-tab-root .setting-item-name,
+body.is-mobile .pdf-settings-tab-root.pdf-settings-tab-root .setting-item-description {
+    white-space: normal;
+    word-break: normal;
+    overflow-wrap: break-word;
 }
 
-.pdf-settings-tab-root.pdf-settings-tab-mobile .setting-item-control,
-.is-mobile .pdf-settings-tab-root .setting-item-control {
-    width: 100% !important;
-    max-width: 100% !important;
-    justify-content: flex-start !important;
-    flex-wrap: wrap !important;
-    gap: 8px !important;
-    box-sizing: border-box !important;
+body .pdf-settings-tab-root.pdf-settings-tab-root.pdf-settings-tab-mobile .setting-item-control,
+body.is-mobile .pdf-settings-tab-root.pdf-settings-tab-root .setting-item-control {
+    width: 100%;
+    max-width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 8px;
+    box-sizing: border-box;
 }
 
-.pdf-settings-tab-root.pdf-settings-tab-mobile .setting-item-control select,
-.pdf-settings-tab-root.pdf-settings-tab-mobile .setting-item-control input[type="text"],
-.pdf-settings-tab-root.pdf-settings-tab-mobile .setting-item-control input[type="number"],
-.pdf-settings-tab-root.pdf-settings-tab-mobile .setting-item-control textarea,
-.is-mobile .pdf-settings-tab-root .setting-item-control select,
-.is-mobile .pdf-settings-tab-root .setting-item-control input[type="text"],
-.is-mobile .pdf-settings-tab-root .setting-item-control input[type="number"],
-.is-mobile .pdf-settings-tab-root .setting-item-control textarea {
-    width: 100% !important;
-    max-width: 100% !important;
-    box-sizing: border-box !important;
+body .pdf-settings-tab-root.pdf-settings-tab-root.pdf-settings-tab-mobile .setting-item-control select,
+body .pdf-settings-tab-root.pdf-settings-tab-root.pdf-settings-tab-mobile .setting-item-control input[type="text"],
+body .pdf-settings-tab-root.pdf-settings-tab-root.pdf-settings-tab-mobile .setting-item-control input[type="number"],
+body .pdf-settings-tab-root.pdf-settings-tab-root.pdf-settings-tab-mobile .setting-item-control textarea,
+body.is-mobile .pdf-settings-tab-root.pdf-settings-tab-root .setting-item-control select,
+body.is-mobile .pdf-settings-tab-root.pdf-settings-tab-root .setting-item-control input[type="text"],
+body.is-mobile .pdf-settings-tab-root.pdf-settings-tab-root .setting-item-control input[type="number"],
+body.is-mobile .pdf-settings-tab-root.pdf-settings-tab-root .setting-item-control textarea {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
-.pdf-settings-tab-root.pdf-settings-tab-mobile .pdf-bookmark-levels-box.pdf-toc-mode-box,
-.is-mobile .pdf-settings-tab-root .pdf-bookmark-levels-box.pdf-toc-mode-box {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: stretch !important;
-    gap: 8px !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    padding: 8px !important;
-    border-radius: 10px !important;
+body .pdf-settings-tab-root.pdf-settings-tab-root.pdf-settings-tab-mobile .pdf-bookmark-levels-box.pdf-toc-mode-box,
+body.is-mobile .pdf-settings-tab-root.pdf-settings-tab-root .pdf-bookmark-levels-box.pdf-toc-mode-box {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    width: 100%;
+    max-width: 100%;
+    padding: 8px;
+    border-radius: 10px;
 }
 
-.pdf-settings-tab-root.pdf-settings-tab-mobile .pdf-toc-mode-box .pdf-bookmark-level-item,
-.is-mobile .pdf-settings-tab-root .pdf-toc-mode-box .pdf-bookmark-level-item {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: flex-start !important;
-    gap: 10px !important;
-    width: 100% !important;
-    min-height: 40px !important;
-    padding: 8px 12px !important;
-    border-radius: 8px !important;
-    background-color: var(--background-secondary) !important;
-    border: 1px solid var(--background-modifier-border) !important;
-    white-space: normal !important;
+body .pdf-settings-tab-root.pdf-settings-tab-root.pdf-settings-tab-mobile .pdf-toc-mode-box .pdf-bookmark-level-item,
+body.is-mobile .pdf-settings-tab-root.pdf-settings-tab-root .pdf-toc-mode-box .pdf-bookmark-level-item {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px;
+    width: 100%;
+    min-height: 40px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background-color: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    white-space: normal;
 }
 
-.pdf-settings-tab-root.pdf-settings-tab-mobile .pdf-bookmark-levels-box:not(.pdf-toc-mode-box),
-.is-mobile .pdf-settings-tab-root .pdf-bookmark-levels-box:not(.pdf-toc-mode-box) {
-    display: grid !important;
-    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-    gap: 8px !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    padding: 8px !important;
-    border-radius: 10px !important;
+body .pdf-settings-tab-root.pdf-settings-tab-root.pdf-settings-tab-mobile .pdf-bookmark-levels-box:not(.pdf-toc-mode-box),
+body.is-mobile .pdf-settings-tab-root.pdf-settings-tab-root .pdf-bookmark-levels-box:not(.pdf-toc-mode-box) {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
+    max-width: 100%;
+    padding: 8px;
+    border-radius: 10px;
 }
 
-.pdf-settings-tab-root.pdf-settings-tab-mobile .pdf-bookmark-levels-box:not(.pdf-toc-mode-box) .pdf-bookmark-level-item,
-.is-mobile .pdf-settings-tab-root .pdf-bookmark-levels-box:not(.pdf-toc-mode-box) .pdf-bookmark-level-item {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    gap: 8px !important;
-    width: 100% !important;
-    min-height: 40px !important;
-    padding: 6px 8px !important;
-    border-radius: 8px !important;
-    background-color: var(--background-secondary) !important;
-    border: 1px solid var(--background-modifier-border) !important;
+body .pdf-settings-tab-root.pdf-settings-tab-root.pdf-settings-tab-mobile .pdf-bookmark-levels-box:not(.pdf-toc-mode-box) .pdf-bookmark-level-item,
+body.is-mobile .pdf-settings-tab-root.pdf-settings-tab-root .pdf-bookmark-levels-box:not(.pdf-toc-mode-box) .pdf-bookmark-level-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 40px;
+    padding: 6px 8px;
+    border-radius: 8px;
+    background-color: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
 }
 
 @media (max-width: 768px) {
-    .pdf-settings-tab-root {
-        padding-left: 16px !important;
-        padding-right: 16px !important;
-        padding-bottom: calc(36px + var(--safe-area-inset-bottom, 0px)) !important;
-        box-sizing: border-box !important;
+    body .pdf-settings-tab-root.pdf-settings-tab-root {
+        padding-left: 16px;
+        padding-right: 16px;
+        padding-bottom: calc(36px + var(--safe-area-inset-bottom, 0px));
+        box-sizing: border-box;
     }
 
     .pdf-settings-tab-root > .pdf-settings-card:first-child {
         margin-top: 12px;
     }
 
-    .pdf-settings-tab-root .pdf-settings-card-header {
-        padding: 13px 20px 11px 22px !important;
+    body .pdf-settings-tab-root.pdf-settings-tab-root .pdf-settings-card-header {
+        padding: 13px 20px 11px 22px;
     }
 
-    .pdf-settings-tab-root .pdf-settings-card-body .setting-item {
-        display: flex !important;
-        flex-direction: column !important;
-        align-items: stretch !important;
-        gap: 8px !important;
-        padding: 14px 20px 14px 24px !important;
-        margin: 0 !important;
-        box-sizing: border-box !important;
+    body .pdf-settings-tab-root.pdf-settings-tab-root .pdf-settings-card-body .setting-item {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+        padding: 14px 20px 14px 24px;
+        margin: 0;
+        box-sizing: border-box;
     }
 
-    .pdf-settings-tab-root .setting-item-info {
-        width: 100% !important;
-        max-width: 100% !important;
-        margin-right: 0 !important;
-        padding-right: 0 !important;
-        flex: none !important;
-        box-sizing: border-box !important;
+    body .pdf-settings-tab-root.pdf-settings-tab-root .setting-item-info {
+        width: 100%;
+        max-width: 100%;
+        margin-right: 0;
+        padding-right: 0;
+        flex: none;
+        box-sizing: border-box;
     }
 
-    .pdf-settings-tab-root .setting-item-name,
-    .pdf-settings-tab-root .setting-item-description {
-        white-space: normal !important;
-        word-break: normal !important;
-        overflow-wrap: break-word !important;
+    body .pdf-settings-tab-root.pdf-settings-tab-root .setting-item-name,
+    body .pdf-settings-tab-root.pdf-settings-tab-root .setting-item-description {
+        white-space: normal;
+        word-break: normal;
+        overflow-wrap: break-word;
     }
 
-    .pdf-settings-tab-root .setting-item-control {
-        width: 100% !important;
-        max-width: 100% !important;
-        justify-content: flex-start !important;
-        flex-wrap: wrap !important;
-        gap: 8px !important;
-        box-sizing: border-box !important;
+    body .pdf-settings-tab-root.pdf-settings-tab-root .setting-item-control {
+        width: 100%;
+        max-width: 100%;
+        justify-content: flex-start;
+        flex-wrap: wrap;
+        gap: 8px;
+        box-sizing: border-box;
     }
 
-    .pdf-settings-tab-root .setting-item-control select,
-    .pdf-settings-tab-root .setting-item-control input[type="text"],
-    .pdf-settings-tab-root .setting-item-control input[type="number"],
-    .pdf-settings-tab-root .setting-item-control textarea {
-        width: 100% !important;
-        max-width: 100% !important;
-        box-sizing: border-box !important;
+    body .pdf-settings-tab-root.pdf-settings-tab-root .setting-item-control select,
+    body .pdf-settings-tab-root.pdf-settings-tab-root .setting-item-control input[type="text"],
+    body .pdf-settings-tab-root.pdf-settings-tab-root .setting-item-control input[type="number"],
+    body .pdf-settings-tab-root.pdf-settings-tab-root .setting-item-control textarea {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
     }
 
-    .pdf-settings-tab-root .pdf-bookmark-levels-box.pdf-toc-mode-box {
-        display: flex !important;
-        flex-direction: column !important;
-        align-items: stretch !important;
-        gap: 8px !important;
-        width: 100% !important;
-        max-width: 100% !important;
-        padding: 8px !important;
-        border-radius: 10px !important;
+    body .pdf-settings-tab-root.pdf-settings-tab-root .pdf-bookmark-levels-box.pdf-toc-mode-box {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+        width: 100%;
+        max-width: 100%;
+        padding: 8px;
+        border-radius: 10px;
     }
 
-    .pdf-settings-tab-root .pdf-toc-mode-box .pdf-bookmark-level-item {
-        display: flex !important;
-        align-items: center !important;
-        justify-content: flex-start !important;
-        gap: 10px !important;
-        width: 100% !important;
-        min-height: 40px !important;
-        padding: 8px 12px !important;
-        border-radius: 8px !important;
-        background-color: var(--background-secondary) !important;
-        border: 1px solid var(--background-modifier-border) !important;
-        white-space: normal !important;
+    body .pdf-settings-tab-root.pdf-settings-tab-root .pdf-toc-mode-box .pdf-bookmark-level-item {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 10px;
+        width: 100%;
+        min-height: 40px;
+        padding: 8px 12px;
+        border-radius: 8px;
+        background-color: var(--background-secondary);
+        border: 1px solid var(--background-modifier-border);
+        white-space: normal;
     }
 
-    .pdf-settings-tab-root .pdf-bookmark-levels-box:not(.pdf-toc-mode-box) {
-        display: grid !important;
-        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-        gap: 8px !important;
-        width: 100% !important;
-        max-width: 100% !important;
-        padding: 8px !important;
-        border-radius: 10px !important;
+    body .pdf-settings-tab-root.pdf-settings-tab-root .pdf-bookmark-levels-box:not(.pdf-toc-mode-box) {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+        width: 100%;
+        max-width: 100%;
+        padding: 8px;
+        border-radius: 10px;
     }
 
-    .pdf-settings-tab-root .pdf-bookmark-levels-box:not(.pdf-toc-mode-box) .pdf-bookmark-level-item {
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        gap: 8px !important;
-        width: 100% !important;
-        min-height: 40px !important;
-        padding: 6px 8px !important;
-        border-radius: 8px !important;
-        background-color: var(--background-secondary) !important;
-        border: 1px solid var(--background-modifier-border) !important;
+    body .pdf-settings-tab-root.pdf-settings-tab-root .pdf-bookmark-levels-box:not(.pdf-toc-mode-box) .pdf-bookmark-level-item {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        width: 100%;
+        min-height: 40px;
+        padding: 6px 8px;
+        border-radius: 8px;
+        background-color: var(--background-secondary);
+        border: 1px solid var(--background-modifier-border);
     }
 }
 
@@ -1626,18 +1628,18 @@
     border-bottom: none;
 }
 
-.pdf-merge-available-cb {
-    width: var(--checkbox-size, 18px) !important;
-    min-width: var(--checkbox-size, 18px) !important;
-    max-width: var(--checkbox-size, 18px) !important;
-    height: var(--checkbox-size, 18px) !important;
-    min-height: var(--checkbox-size, 18px) !important;
-    max-height: var(--checkbox-size, 18px) !important;
-    flex: 0 0 var(--checkbox-size, 18px) !important;
-    margin: 0 !important;
-    padding: 0 !important;
+body .pdf-merge-available-row input[type="checkbox"].pdf-merge-available-cb.pdf-merge-available-cb {
+    width: var(--checkbox-size, 18px);
+    min-width: var(--checkbox-size, 18px);
+    max-width: var(--checkbox-size, 18px);
+    height: var(--checkbox-size, 18px);
+    min-height: var(--checkbox-size, 18px);
+    max-height: var(--checkbox-size, 18px);
+    flex: 0 0 var(--checkbox-size, 18px);
+    margin: 0;
+    padding: 0;
     cursor: pointer;
-    box-sizing: border-box !important;
+    box-sizing: border-box;
 }
 
 .pdf-merge-available-text {
