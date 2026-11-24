@@ -18,13 +18,13 @@
   "devDependencies": {
     "@types/html2canvas": "^1.0.0",
     "@types/node": "^16.11.6",
-    "esbuild": "^0.27.2",
+    "esbuild": "0.28.2",
     "obsidian": "^1.7.2",
     "tslib": "2.4.0",
     "typescript": "4.7.4"
   },
   "dependencies": {
-    "html2canvas": "^1.4.1",
-    "jspdf": "^2.5.1"
+    "html2canvas": "1.4.1",
+    "jspdf": "4.2.1"
   }
 }
