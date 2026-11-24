@@ -403,6 +403,35 @@ body .pdf-export-root.pdf-export-root .MathJax {
     text-align: start;
 }
 
+body .pdf-export-root.pdf-export-root table.pdf-table-split-head,
+body .pdf-export-root.pdf-export-root .markdown-rendered table.pdf-table-split-head,
+body .pdf-export-root.pdf-export-root table.pdf-table-split-head > tbody,
+body .pdf-export-root.pdf-export-root .markdown-rendered table.pdf-table-split-head > tbody,
+body .pdf-export-root.pdf-export-root table.pdf-table-split-head > tbody > tr:last-child,
+body .pdf-export-root.pdf-export-root .markdown-rendered table.pdf-table-split-head > tbody > tr:last-child,
+body .pdf-export-root.pdf-export-root table.pdf-table-split-head > tbody > tr:last-child > td,
+body .pdf-export-root.pdf-export-root .markdown-rendered table.pdf-table-split-head > tbody > tr:last-child > td,
+body .pdf-export-root.pdf-export-root table.pdf-table-split-head > tbody > tr:last-child > th,
+body .pdf-export-root.pdf-export-root .markdown-rendered table.pdf-table-split-head > tbody > tr:last-child > th,
+body .pdf-export-root.pdf-export-root table.pdf-table-split-head > tr:last-child,
+body .pdf-export-root.pdf-export-root .markdown-rendered table.pdf-table-split-head > tr:last-child,
+body .pdf-export-root.pdf-export-root table.pdf-table-split-head > tr:last-child > td,
+body .pdf-export-root.pdf-export-root .markdown-rendered table.pdf-table-split-head > tr:last-child > td,
+body .pdf-export-root.pdf-export-root table.pdf-table-split-head > tr:last-child > th,
+body .pdf-export-root.pdf-export-root .markdown-rendered table.pdf-table-split-head > tr:last-child > th {
+    border-bottom: 0 none transparent;
+    border-bottom-width: 0;
+    border-bottom-style: none;
+    border-bottom-color: transparent;
+    box-shadow: none;
+}
+
+body .pdf-export-root.pdf-export-root .pdf-split-head-flush,
+body .pdf-export-root.pdf-export-root .markdown-rendered .pdf-split-head-flush {
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
 body .pdf-export-root.pdf-export-root .callout,
 body .pdf-export-root.pdf-export-root blockquote,
 body .pdf-export-root.pdf-export-root .markdown-embed,
@@ -781,8 +810,13 @@ body .pdf-settings-card .pdf-settings-card-body .pdf-hidden.pdf-hidden {
     box-sizing: border-box;
 }
 
-body .pdf-settings-card .pdf-settings-card-body .setting-item {
+body .pdf-settings-card .pdf-settings-card-body .setting-item,
+body.is-mobile .pdf-settings-card .pdf-settings-card-body .setting-item {
     border-top: 1px solid var(--background-modifier-border);
+    border-right: none;
+    border-bottom: none;
+    border-left: none;
+    border-radius: 0;
     margin: 0;
     padding: 14px 22px 14px 26px;
     box-sizing: border-box;
@@ -796,7 +830,8 @@ body .pdf-settings-card .pdf-settings-card-body .setting-item {
     border-top-color: rgba(0, 0, 0, 0.06);
 }
 
-body .pdf-settings-card .pdf-settings-card-body > .setting-item:first-child {
+body .pdf-settings-card .pdf-settings-card-body > .setting-item:first-child,
+body.is-mobile .pdf-settings-card .pdf-settings-card-body > .setting-item:first-child {
     border-top: none;
 }
 
@@ -875,13 +910,18 @@ body .pdf-sidebar-root.pdf-sidebar-root {
     font-size: 13px;
 }
 
-body .pdf-sidebar-root.pdf-sidebar-root .pdf-settings-card-body .setting-item {
+body .pdf-sidebar-root.pdf-sidebar-root .pdf-settings-card-body .setting-item,
+body.is-mobile .pdf-sidebar-root.pdf-sidebar-root .pdf-settings-card-body .setting-item {
     display: flex;
     flex-direction: column;
     align-items: stretch;
     gap: 6px;
     padding: 12px 18px 12px 22px;
     margin: 0;
+    border-radius: 0;
+    border-right: none;
+    border-bottom: none;
+    border-left: none;
     box-sizing: border-box;
 }
 
@@ -1184,6 +1224,7 @@ body .pdf-sidebar-root.pdf-sidebar-root .pdf-bookmark-level-item input[type="che
 
 body .pdf-settings-tab-root.pdf-settings-tab-root .pdf-settings-card-body .setting-item {
     padding: 15px 22px 15px 28px;
+    border-radius: 0;
 }
 
 .pdf-settings-tab-root .pdf-settings-card-body .setting-item-info {
@@ -1269,6 +1310,10 @@ body.is-mobile .pdf-settings-tab-root.pdf-settings-tab-root .pdf-settings-card-b
     gap: 8px;
     padding: 14px 20px 14px 24px;
     margin: 0;
+    border-radius: 0;
+    border-right: none;
+    border-bottom: none;
+    border-left: none;
     box-sizing: border-box;
 }
 
@@ -1389,6 +1434,10 @@ body.is-mobile .pdf-settings-tab-root.pdf-settings-tab-root .pdf-bookmark-levels
         gap: 8px;
         padding: 14px 20px 14px 24px;
         margin: 0;
+        border-radius: 0;
+        border-right: none;
+        border-bottom: none;
+        border-left: none;
         box-sizing: border-box;
     }
 

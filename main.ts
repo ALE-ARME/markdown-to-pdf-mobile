@@ -230,6 +230,9 @@ interface CachedPdfSlice {
     imgData: string;
     format: 'JPEG' | 'PNG';
     heightMm: number;
+    xMm?: number;
+    widthMm?: number;
+    mmPerPx?: number;
     sliceTopCssPx?: number;
     sliceBottomCssPx?: number;
 }
@@ -1908,6 +1911,41 @@ export default class PdfPlugin extends Plugin {
         '[class*="block-language-"], .mermaid, .internal-embed, .dataview, .math, mjx-container, canvas, iframe';
 
     /**
+     * Interactive Obsidian / plugin chrome controls that must never be painted or extracted into
+     * exported PDFs, even if a mobile or custom theme overrides CSS display rules with !important.
+     */
+    private static readonly PDF_EXCLUDED_UI_SELECTOR = [
+        '.copy-code-button',
+        '.edit-block-button',
+        '.collapse-indicator',
+        '.heading-collapse-indicator',
+        '.list-collapse-indicator',
+        '.markdown-embed-link',
+        '.file-embed-link',
+        '.metadata-container',
+        '.frontmatter',
+        '.view-header',
+        '.workspace-leaf-resize-handle',
+        '.markdown-source-view',
+        '.markdown-preview-pusher',
+        '.switchable-layout .switch-button',
+        '.diagram-zoom-drag-controls',
+        '.dzd-controls',
+        '.dzd-toolbar',
+        '.mermaid-toolbar',
+        '.mermaid-controls',
+        '.mermaid-zoom-buttons',
+        '.zoom-controls',
+        '.pan-zoom-controls',
+        '.mermaid button',
+        '.block-language-mermaid button',
+        '.mermaid .clickable-icon',
+        '.block-language-mermaid .clickable-icon',
+        '[class*="mermaid"] button',
+        '[class*="diagram-zoom"] button'
+    ].join(', ');
+
+    /**
      * Waits for async Obsidian renderers (images, Mermaid diagrams, MathJax, internal embeds) to finish.
      * Adapts wait times automatically: plain notes settle quickly, while notes with async widgets or
      * live DOM mutations receive the full settle window.
@@ -3278,6 +3316,13 @@ export default class PdfPlugin extends Plugin {
             ancestor = ancestor.parentElement;
         }
 
+        // 1b. Strip interactive Obsidian/plugin UI buttons (e.g. copy-code-button) directly from the
+        // cloned capture DOM so high-specificity or !important theme rules can never make them visible.
+        const excludedUiEls = clonedEl.querySelectorAll(PdfPlugin.PDF_EXCLUDED_UI_SELECTOR);
+        for (let i = 0; i < excludedUiEls.length; i++) {
+            excludedUiEls[i].remove();
+        }
+
         // 2. Replace all visible checkboxes (Obsidian task checkboxes AND raw HTML / plugin
         // <input type="checkbox">) in the cloned document only, because html2canvas 1.4.1 cannot
         // reliably paint native checkbox controls or CSS `-webkit-mask-image` checkmarks.
@@ -4158,6 +4203,9 @@ export default class PdfPlugin extends Plugin {
             }
 
             const htmlEl = el as HTMLElement;
+            if (!isRoot && htmlEl.matches(PdfPlugin.PDF_EXCLUDED_UI_SELECTOR)) {
+                return null;
+            }
             const cs = window.getComputedStyle(htmlEl);
             if (!isRoot && (cs.display === 'none' || parseFloat(cs.opacity) === 0)) {
                 return null;
@@ -5454,11 +5502,12 @@ export default class PdfPlugin extends Plugin {
     private splitBlockToFitHeight(
         item: BlockItem,
         maxAllowedBottom: number,
-        depth: number = 0
+        depth: number = 0,
+        forceSplitFirstItem: boolean = false
     ): { head: BlockItem; tail: BlockItem } | null {
         if (depth > 16) return null;
         const itemRect = item.el.getBoundingClientRect();
-        if (maxAllowedBottom - itemRect.top < 24) return null;
+        if (!forceSplitFirstItem && maxAllowedBottom - itemRect.top < 24) return null;
 
         const { wrappers, target } = this.unwrapSplittableContainer(item.el);
         const itemCs = window.getComputedStyle(item.el);
@@ -5482,9 +5531,13 @@ export default class PdfPlugin extends Plugin {
         if (target.tagName === 'UL' || target.tagName === 'OL') {
             const listItems = Array.from(target.children).filter(c => c.tagName === 'LI') as HTMLElement[];
             if (listItems.length >= 1) {
+                // A split list continuing onto the next page does not need its outer trailing margin-bottom
+                // at the bottom of the current page (we flush margin-bottom on headList below), avoiding
+                // false fitCount=0 failures when a tall item ends within a few pixels of maxAllowedBottom.
+                const listEffectiveMaxBottom = maxAllowedBottom - targetPBot - (depth === 0 ? 2 : 1);
                 let fitCount = 0;
                 for (let i = 0; i < listItems.length; i++) {
-                    if (listItems[i].getBoundingClientRect().bottom <= effectiveMaxBottom) {
+                    if (listItems[i].getBoundingClientRect().bottom <= listEffectiveMaxBottom) {
                         fitCount = i + 1;
                     } else {
                         break;
@@ -5496,16 +5549,34 @@ export default class PdfPlugin extends Plugin {
                 if (fitCount < listItems.length) {
                     const overflowLi = listItems[fitCount];
                     const overflowTop = overflowLi.getBoundingClientRect().top;
-                    if (effectiveMaxBottom - overflowTop >= 28) {
+                    if (listEffectiveMaxBottom - overflowTop >= 28) {
                         const liLineAttr = overflowLi.getAttribute('data-pdf-line');
                         const liStart = liLineAttr ? (parseInt(liLineAttr, 10) || item.startLine) : item.startLine;
-                        overflowLiSplit = this.splitListItemToFitHeight(overflowLi, effectiveMaxBottom, liStart, item.endLine, depth + 1);
+                        overflowLiSplit = this.splitListItemToFitHeight(overflowLi, listEffectiveMaxBottom, liStart, item.endLine, depth + 1);
+                    }
+                }
+
+                // If a nested list's own padding/margin slightly exceeded parent budget even though all
+                // child <li>s fit, peel off its last item cleanly instead of aborting the parent list split.
+                if (depth > 0 && fitCount === listItems.length && listItems.length >= 2) {
+                    fitCount = listItems.length - 1;
+                }
+
+                // If we are on a fresh empty page and even item[0] could not split while sibling items follow,
+                // peel item[0] off cleanly so only item[0] slices and following items never strand on an empty tail page.
+                if (fitCount === 0 && !overflowLiSplit && listItems.length > 1) {
+                    if (listItems[0].getBoundingClientRect().bottom <= maxAllowedBottom - 1 || forceSplitFirstItem) {
+                        fitCount = 1;
                     }
                 }
 
                 if ((fitCount >= 1 && fitCount < listItems.length) || overflowLiSplit) {
                     const headList = target.cloneNode(false) as HTMLElement;
                     const tailList = target.cloneNode(false) as HTMLElement;
+                    if (depth === 0) {
+                        headList.classList.add('pdf-split-head-flush');
+                    }
+                    tailList.classList.remove('pdf-split-head-flush');
 
                     for (let i = 0; i < fitCount; i++) headList.appendChild(listItems[i]);
                     if (overflowLiSplit) {
@@ -5573,6 +5644,8 @@ export default class PdfPlugin extends Plugin {
                 if (fitCount >= 1 && fitCount < rows.length) {
                     const headTable = target.cloneNode(false) as HTMLTableElement;
                     const tailTable = target.cloneNode(false) as HTMLTableElement;
+                    headTable.classList.add('pdf-table-split-head');
+                    tailTable.classList.remove('pdf-table-split-head');
                     if (thead) {
                         headTable.appendChild(thead.cloneNode(true));
                         tailTable.appendChild(thead.cloneNode(true));
@@ -5979,9 +6052,13 @@ export default class PdfPlugin extends Plugin {
                     tbl.appendChild(tb);
                     return tbl;
                 };
+                const headTable = buildTable(rows.slice(0, splitIdx));
+                const tailTable = buildTable(rows.slice(splitIdx));
+                headTable.classList.add('pdf-table-split-head');
+                tailTable.classList.remove('pdf-table-split-head');
                 return [
-                    { el: wrapNode(buildTable(rows.slice(0, splitIdx))), startLine: item.startLine, endLine: breakLine - 1, forceBreakBefore: item.forceBreakBefore },
-                    { el: wrapNode(buildTable(rows.slice(splitIdx))), startLine: breakLine, endLine: item.endLine, forceBreakBefore: true }
+                    { el: wrapNode(headTable), startLine: item.startLine, endLine: breakLine - 1, forceBreakBefore: item.forceBreakBefore },
+                    { el: wrapNode(tailTable), startLine: breakLine, endLine: item.endLine, forceBreakBefore: true }
                 ];
             }
         }
@@ -8756,6 +8833,7 @@ export default class PdfPlugin extends Plugin {
             const parentEl = textNode.parentElement;
             if (!parentEl) continue;
             if (parentEl.closest('style, script, noscript, svg, mjx-container')) continue;
+            if (parentEl.closest(PdfPlugin.PDF_EXCLUDED_UI_SELECTOR)) continue;
 
             const cs = getStyle(parentEl);
             if (cs.display === 'none' || cs.visibility === 'hidden' || parseFloat(cs.opacity) === 0) continue;
@@ -11348,6 +11426,26 @@ export default class PdfPlugin extends Plugin {
                                 runningEstH = measureSizer.scrollHeight;
                                 pushToCurrentPage(block);
                             } else {
+                                // Before falling back to multi-page slicing on an empty page, if this block is a
+                                // multi-item list whose first item alone exceeded the page, peel off item[0] so
+                                // subsequent list items flow normally onto the next page alongside following headings.
+                                if (currentPage.elements.length === 0) {
+                                    const forcedSplit = this.splitBlockToFitHeight(block, sizerTop + pageMaxPx, 0, true);
+                                    if (forcedSplit) {
+                                        if (block.isWide) {
+                                            forcedSplit.head.isWide = true;
+                                            forcedSplit.tail.isWide = this.isWideBlockForPortrait(forcedSplit.tail.el, contentWidthPx);
+                                        }
+                                        block.el.replaceWith(forcedSplit.head.el);
+                                        if (measureSizer.scrollHeight > pageMaxPx) {
+                                            currentPage.allowMultiPageSlice = true;
+                                        }
+                                        pushToCurrentPage(forcedSplit.head);
+                                        finalizeCurrentPage(!!forcedSplit.tail.isWide);
+                                        pushbackStack.push(forcedSplit.tail);
+                                        continue;
+                                    }
+                                }
                                 // Ultra-tall (>2.2x page height) unbreakable block: keep full readable width
                                 // together with any carried heading(s) and slice seamlessly across pages
                                 // (never finalize an orphan heading-only blank page).
@@ -11593,9 +11691,10 @@ export default class PdfPlugin extends Plugin {
                     }
                 } else {
                     // Oversized single block: slice across multiple PDF pages cleanly while avoiding
-                    // cutting through small/medium images whenever shifting the cut slightly up keeps them intact.
+                    // cutting through small/medium images or diagram boxes whenever shifting the cut keeps them intact.
                     const sliceHeightPx = Math.floor(pageLayout.maxPageContentPx * captureScale);
                     const minSlicePx = Math.floor(pageLayout.maxPageContentPx * 0.25 * captureScale);
+                    const maxAbsorbOverPx = Math.round(56 * captureScale);
                     let offsetPx = 0;
                     let sliceIndex = 0;
 
@@ -11606,34 +11705,38 @@ export default class PdfPlugin extends Plugin {
                             break;
                         }
 
-                        let currentSliceH = Math.min(sliceHeightPx, remainingPx);
-                        if (offsetPx + currentSliceH < pageCanvas.height && unbreakableRanges.length > 0) {
-                            const sliceTopCss = offsetPx / captureScale;
-                            for (let pass = 0; pass < 4; pass++) {
-                                const proposedBotCss = (offsetPx + currentSliceH) / captureScale;
-                                let earliestStraddleTop: number | null = null;
-                                for (let u = 0; u < unbreakableRanges.length; u++) {
-                                    const r = unbreakableRanges[u];
-                                    if (r.topCssPx >= proposedBotCss) break;
-                                    if (r.topCssPx > sliceTopCss + 4 && r.bottomCssPx > proposedBotCss) {
-                                        earliestStraddleTop = r.topCssPx;
+                        // If the remaining tail overhangs a single page by only a small sliver (e.g. the
+                        // bottom border/stroke or SVG padding of the final Mermaid box), absorb it into
+                        // this slice and proportionally fit it to maxContentHeightMm instead of spawning
+                        // an almost-empty trailing page.
+                        let currentSliceH: number;
+                        if (remainingPx > sliceHeightPx && remainingPx <= sliceHeightPx + maxAbsorbOverPx) {
+                            currentSliceH = remainingPx;
+                        } else {
+                            currentSliceH = Math.min(sliceHeightPx, remainingPx);
+                            if (offsetPx + currentSliceH < pageCanvas.height && unbreakableRanges.length > 0) {
+                                const sliceTopCss = offsetPx / captureScale;
+                                for (let pass = 0; pass < 4; pass++) {
+                                    const proposedBotCss = (offsetPx + currentSliceH) / captureScale;
+                                    let earliestStraddleTop: number | null = null;
+                                    for (let u = 0; u < unbreakableRanges.length; u++) {
+                                        const r = unbreakableRanges[u];
+                                        if (r.topCssPx >= proposedBotCss) break;
+                                        if (r.topCssPx > sliceTopCss + 4 && r.bottomCssPx > proposedBotCss) {
+                                            earliestStraddleTop = r.topCssPx;
+                                            break;
+                                        }
+                                    }
+                                    if (earliestStraddleTop === null) break;
+                                    const adjustedH = Math.floor((earliestStraddleTop - 3) * captureScale) - offsetPx;
+                                    if (adjustedH >= minSlicePx && adjustedH < currentSliceH) {
+                                        currentSliceH = adjustedH;
+                                    } else {
                                         break;
                                     }
                                 }
-                                if (earliestStraddleTop === null) break;
-                                const adjustedH = Math.floor((earliestStraddleTop - 3) * captureScale) - offsetPx;
-                                if (adjustedH >= minSlicePx && adjustedH < currentSliceH) {
-                                    currentSliceH = adjustedH;
-                                } else {
-                                    break;
-                                }
                             }
                         }
-
-                        this.ensurePdfPageOrientation(doc, emittedPdfPages, pageLayout);
-                        emittedPdfPages++;
-                        doc.setFillColor(bgColor[0], bgColor[1], bgColor[2]);
-                        doc.rect(0, 0, pageLayout.pageWidth, pageLayout.pageHeight, 'F');
 
                         const sliceTopCssPx = offsetPx / captureScale;
                         const sliceBottomCssPx = (offsetPx + currentSliceH) / captureScale;
@@ -11645,38 +11748,95 @@ export default class PdfPlugin extends Plugin {
                             sCtx.fillStyle = bgHex;
                             sCtx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
                             sCtx.drawImage(pageCanvas, 0, offsetPx, pageCanvas.width, currentSliceH, 0, 0, pageCanvas.width, currentSliceH);
+
+                            // Skip emitting a trailing slice that contains only uniform background padding
+                            if (sliceIndex > 0) {
+                                let hasInk = this.canvasHasNonBgPixels(sCtx, sliceCanvas.width, sliceCanvas.height, bgColor);
+                                if (!hasInk) {
+                                    const edgeRows = [0, 1, 2, sliceCanvas.height - 1];
+                                    for (let eIdx = 0; eIdx < edgeRows.length && !hasInk; eIdx++) {
+                                        const ey = edgeRows[eIdx];
+                                        if (ey < 0 || ey >= sliceCanvas.height) continue;
+                                        const rowData = sCtx.getImageData(0, ey, sliceCanvas.width, 1).data;
+                                        for (let px = 0; px < rowData.length; px += 8) {
+                                            if (
+                                                Math.abs(rowData[px] - bgColor[0]) > 6 ||
+                                                Math.abs(rowData[px + 1] - bgColor[1]) > 6 ||
+                                                Math.abs(rowData[px + 2] - bgColor[2]) > 6
+                                            ) {
+                                                hasInk = true;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                                if (!hasInk) {
+                                    sliceCanvas.width = 0;
+                                    sliceCanvas.height = 0;
+                                    break;
+                                }
+                            }
+
+                            this.ensurePdfPageOrientation(doc, emittedPdfPages, pageLayout);
+                            emittedPdfPages++;
+                            doc.setFillColor(bgColor[0], bgColor[1], bgColor[2]);
+                            doc.rect(0, 0, pageLayout.pageWidth, pageLayout.pageHeight, 'F');
+
                             const sliceEncoded = await encodePageCanvasForPdf(sliceCanvas, pageHasEmbeddedImages);
-                            const sliceHeightMm = (currentSliceH / captureScale) * pageLayout.mmPerPx;
-                            doc.addImage(sliceEncoded.data, sliceEncoded.format, pageLayout.margin, pageLayout.topMargin, pageLayout.contentWidthMm, sliceHeightMm, undefined, 'FAST');
+                            const rawSliceHeightMm = (currentSliceH / captureScale) * pageLayout.mmPerPx;
+                            let drawW = pageLayout.contentWidthMm;
+                            let drawH = rawSliceHeightMm;
+                            let drawX = pageLayout.margin;
+                            let drawMmPerPx = pageLayout.mmPerPx;
+                            if (rawSliceHeightMm > pageLayout.maxContentHeightMm) {
+                                const fitScale = pageLayout.maxContentHeightMm / rawSliceHeightMm;
+                                drawH = pageLayout.maxContentHeightMm;
+                                drawW = pageLayout.contentWidthMm * fitScale;
+                                drawX = pageLayout.margin + (pageLayout.contentWidthMm - drawW) / 2;
+                                drawMmPerPx = pageLayout.mmPerPx * fitScale;
+                            }
+                            doc.addImage(sliceEncoded.data, sliceEncoded.format, drawX, pageLayout.topMargin, drawW, drawH, undefined, 'FAST');
                             this.drawInvisibleTextLayer(
                                 doc,
                                 textSpans,
                                 effectiveTextLayerFont,
                                 isCustomUnicodeFont,
-                                pageLayout.margin,
+                                drawX,
                                 pageLayout.topMargin,
                                 pageLayout.pageWidth,
                                 pageLayout.pageHeight,
-                                pageLayout.mmPerPx,
+                                drawMmPerPx,
                                 sliceTopCssPx,
                                 sliceBottomCssPx
                             );
                             if (shouldCacheSlices && !sliceCacheOverflowed) {
                                 cachedSliceChars += sliceEncoded.data.length;
                                 if (cachedSliceChars <= maxCachedSliceChars) {
-                                    generatedSlices.push({ imgData: sliceEncoded.data, format: sliceEncoded.format, heightMm: sliceHeightMm, sliceTopCssPx, sliceBottomCssPx });
+                                    generatedSlices.push({
+                                        imgData: sliceEncoded.data,
+                                        format: sliceEncoded.format,
+                                        heightMm: drawH,
+                                        xMm: drawX !== pageLayout.margin ? drawX : undefined,
+                                        widthMm: drawW !== pageLayout.contentWidthMm ? drawW : undefined,
+                                        mmPerPx: drawMmPerPx !== pageLayout.mmPerPx ? drawMmPerPx : undefined,
+                                        sliceTopCssPx,
+                                        sliceBottomCssPx
+                                    });
                                 } else {
                                     sliceCacheOverflowed = true;
                                 }
                             }
+                            const sliceMetaLayout = drawMmPerPx !== pageLayout.mmPerPx
+                                ? { ...pageLayout, mmPerPx: drawMmPerPx }
+                                : pageLayout;
+                            recordEmittedSlice(emittedPdfPages, sliceTopCssPx, sliceBottomCssPx, annotations, sliceMetaLayout);
+                            if (showLineNumbers && sliceIndex === 0 && markerOffsets.length > 0) {
+                                deferredLineNumbers.push({ pdfPageNum: emittedPdfPages, markerOffsets, singleSlice: true, mmPerPx: drawMmPerPx });
+                            }
                         }
-                        recordEmittedSlice(emittedPdfPages, sliceTopCssPx, sliceBottomCssPx, annotations, pageLayout);
                         sliceCanvas.width = 0;
                         sliceCanvas.height = 0;
 
-                        if (showLineNumbers && sliceIndex === 0 && markerOffsets.length > 0) {
-                            deferredLineNumbers.push({ pdfPageNum: emittedPdfPages, markerOffsets, singleSlice: true, mmPerPx: pageLayout.mmPerPx });
-                        }
                         offsetPx += currentSliceH;
                         sliceIndex++;
                     }
@@ -11812,6 +11972,45 @@ export default class PdfPlugin extends Plugin {
                     }
                 }
 
+                // Prevent top-level task list checkboxes from protruding past x=0 (Obsidian uses negative
+                // margin-inline-start on checkboxes, causing <foreignObject> overflow:hidden to clip their left border).
+                const wrapperLeft = pageWrapper.getBoundingClientRect().left;
+                const allPageCbs = Array.from(pageSizer.querySelectorAll<HTMLElement>('input[type="checkbox"]'));
+                if (allPageCbs.length > 0) {
+                    const listMinLeft = new Map<HTMLElement, number>();
+                    for (let cIdx = 0; cIdx < allPageCbs.length; cIdx++) {
+                        const cb = allPageCbs[cIdx];
+                        const cbRect = cb.getBoundingClientRect();
+                        if (cbRect.width <= 0 || cbRect.height <= 0) continue;
+                        let outerList: HTMLElement | null = null;
+                        let cur: HTMLElement | null = cb.parentElement;
+                        while (cur && cur !== pageSizer) {
+                            if (cur.tagName === 'UL' || cur.tagName === 'OL') {
+                                outerList = cur;
+                            }
+                            cur = cur.parentElement;
+                        }
+                        if (outerList) {
+                            const prev = listMinLeft.get(outerList);
+                            if (prev === undefined || cbRect.left < prev) {
+                                listMinLeft.set(outerList, cbRect.left);
+                            }
+                        } else if (cbRect.left < wrapperLeft + 2) {
+                            const shiftPx = Math.ceil(wrapperLeft + 2 - cbRect.left);
+                            const curML = parseFloat(window.getComputedStyle(cb).marginLeft) || 0;
+                            cb.style.marginLeft = `${curML + shiftPx}px`;
+                        }
+                    }
+                    const safeLeft = wrapperLeft + 2;
+                    for (const [listEl, minLeft] of listMinLeft.entries()) {
+                        if (minLeft < safeLeft) {
+                            const shiftPx = Math.ceil(safeLeft - minLeft);
+                            const curPadLeft = parseFloat(window.getComputedStyle(listEl).paddingLeft) || 0;
+                            listEl.style.paddingLeft = `${curPadLeft + shiftPx}px`;
+                        }
+                    }
+                }
+
                 const sizerRect = pageSizer.getBoundingClientRect();
                 const wrapperTop = pageWrapper.getBoundingClientRect().top;
                 const markerOffsets: Array<{ line: number; offsetTopPx: number }> = [];
@@ -11838,7 +12037,8 @@ export default class PdfPlugin extends Plugin {
                         });
                     }
                 }
-                // Also protect individual Mermaid/SVG diagram node boxes and arrow labels when slicing tall diagrams
+                // Also protect individual Mermaid/SVG diagram node boxes and arrow labels (including
+                // their outer strokes/borders) when slicing tall diagrams across pages.
                 const maxSvgNodeH = Math.min(260, maxAtomicH);
                 const svgNodeEls = pageWrapper.querySelectorAll<SVGGElement>(
                     'svg g.node, svg g.actor, svg g.cluster-label, svg g.statediagram-state, svg g.edgeLabel'
@@ -11849,8 +12049,8 @@ export default class PdfPlugin extends Plugin {
                     const nr = nodeEl.getBoundingClientRect();
                     if (nr.height > 6 && nr.height <= maxSvgNodeH && nr.width > 4) {
                         unbreakableRanges.push({
-                            topCssPx: Math.max(0, nr.top - wrapperTop),
-                            bottomCssPx: Math.max(0, nr.bottom - wrapperTop)
+                            topCssPx: Math.max(0, nr.top - wrapperTop - 3),
+                            bottomCssPx: Math.max(0, nr.bottom - wrapperTop + 4)
                         });
                     }
                 }
@@ -11885,17 +12085,20 @@ export default class PdfPlugin extends Plugin {
                         doc.setFillColor(bgColor[0], bgColor[1], bgColor[2]);
                         doc.rect(0, 0, cachedLayout.pageWidth, cachedLayout.pageHeight, 'F');
                         const slice = cachedPage.slices[sIdx];
-                        doc.addImage(slice.imgData, slice.format, cachedLayout.margin, cachedLayout.topMargin, cachedLayout.contentWidthMm, slice.heightMm, undefined, 'FAST');
+                        const sliceX = slice.xMm ?? cachedLayout.margin;
+                        const sliceW = slice.widthMm ?? cachedLayout.contentWidthMm;
+                        const sliceMmPerPx = slice.mmPerPx ?? cachedLayout.mmPerPx;
+                        doc.addImage(slice.imgData, slice.format, sliceX, cachedLayout.topMargin, sliceW, slice.heightMm, undefined, 'FAST');
                         this.drawInvisibleTextLayer(
                             doc,
                             cachedPage.textSpans,
                             effectiveTextLayerFont,
                             isCustomUnicodeFont,
-                            cachedLayout.margin,
+                            sliceX,
                             cachedLayout.topMargin,
                             cachedLayout.pageWidth,
                             cachedLayout.pageHeight,
-                            cachedLayout.mmPerPx,
+                            sliceMmPerPx,
                             slice.sliceTopCssPx ?? 0,
                             slice.sliceBottomCssPx ?? Infinity
                         );
@@ -11905,7 +12108,7 @@ export default class PdfPlugin extends Plugin {
                             sliceBottomCssPx: slice.sliceBottomCssPx ?? Infinity,
                             pageWidthMm: cachedLayout.pageWidth,
                             pageHeightMm: cachedLayout.pageHeight,
-                            mmPerPx: cachedLayout.mmPerPx,
+                            mmPerPx: sliceMmPerPx,
                             headings: cachedPage.headings || [],
                             anchors: cachedPage.anchors || [],
                             links: cachedPage.links || []
@@ -11915,7 +12118,7 @@ export default class PdfPlugin extends Plugin {
                                 pdfPageNum: emittedPdfPages,
                                 markerOffsets: cachedPage.markerOffsets,
                                 singleSlice: cachedPage.slices.length > 1,
-                                mmPerPx: cachedLayout.mmPerPx
+                                mmPerPx: sliceMmPerPx
                             });
                         }
                     }
