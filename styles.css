@@ -383,7 +383,7 @@
 .pdf-export-root .el-table,
 .pdf-export-root .table-wrapper,
 .pdf-export-root .math-block,
-.pdf-export-root mjx-container {
+.pdf-export-root .MathJax {
     overflow-x: visible !important;
     overflow-y: visible !important;
 }
