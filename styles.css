@@ -372,11 +372,6 @@
     border-radius: 6px;
 }
 
-.pdf-export-root,
-.pdf-export-root * {
-    scrollbar-width: none !important;
-}
-
 .pdf-export-root::-webkit-scrollbar,
 .pdf-export-root *::-webkit-scrollbar {
     display: none !important;
