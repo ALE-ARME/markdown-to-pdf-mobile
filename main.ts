@@ -2079,37 +2079,67 @@ export default class PdfPlugin extends Plugin {
      */
     private async readUrlAsArrayBuffer(url: string): Promise<{ buffer: ArrayBuffer; contentType: string } | null> {
         if (!url) return null;
-        if (url.startsWith('http://') || url.startsWith('https://')) {
+
+        const isHttp = url.startsWith('http://') || url.startsWith('https://');
+        let isLocalWebViewOrigin = !isHttp;
+        if (isHttp) {
             try {
-                const resp = await requestUrl({ url });
-                const ct = resp.headers['content-type'] || resp.headers['Content-Type'] || '';
-                return { buffer: resp.arrayBuffer, contentType: ct };
+                const parsed = new URL(url, window.location.href);
+                const host = parsed.hostname.toLowerCase();
+                // On Obsidian Mobile (Android Capacitor), window.location.origin is http://localhost
+                // (or https://localhost). Bundled assets such as MathJax CHTML .woff/.woff2 fonts
+                // and /_capacitor_file_/ vault files are served by the WebView's local asset
+                // interceptor and MUST be read via XHR rather than requestUrl (which hits the OS
+                // network stack and fails with connection refused on localhost).
+                isLocalWebViewOrigin =
+                    parsed.origin === window.location.origin ||
+                    host === 'localhost' ||
+                    host === '127.0.0.1' ||
+                    host === '[::1]';
             } catch {
-                return null;
+                isLocalWebViewOrigin = false;
             }
         }
-        return await new Promise<{ buffer: ArrayBuffer; contentType: string } | null>((resolve) => {
-            try {
-                const xhr = new XMLHttpRequest();
-                xhr.open('GET', url, true);
-                xhr.responseType = 'arraybuffer';
-                xhr.onload = () => {
-                    if ((xhr.status === 0 || (xhr.status >= 200 && xhr.status < 300)) && xhr.response instanceof ArrayBuffer) {
-                        resolve({
-                            buffer: xhr.response,
-                            contentType: xhr.getResponseHeader('content-type') || ''
-                        });
-                    } else {
-                        resolve(null);
-                    }
-                };
-                xhr.onerror = () => resolve(null);
-                xhr.onabort = () => resolve(null);
-                xhr.send();
-            } catch {
-                resolve(null);
+
+        const readViaXhr = (): Promise<{ buffer: ArrayBuffer; contentType: string } | null> =>
+            new Promise<{ buffer: ArrayBuffer; contentType: string } | null>((resolve) => {
+                try {
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('GET', url, true);
+                    xhr.responseType = 'arraybuffer';
+                    xhr.onload = () => {
+                        if ((xhr.status === 0 || (xhr.status >= 200 && xhr.status < 300)) && xhr.response instanceof ArrayBuffer) {
+                            resolve({
+                                buffer: xhr.response,
+                                contentType: xhr.getResponseHeader('content-type') || ''
+                            });
+                        } else {
+                            resolve(null);
+                        }
+                    };
+                    xhr.onerror = () => resolve(null);
+                    xhr.onabort = () => resolve(null);
+                    xhr.send();
+                } catch {
+                    resolve(null);
+                }
+            });
+
+        if (isLocalWebViewOrigin) {
+            const localRes = await readViaXhr();
+            if (localRes && localRes.buffer.byteLength > 0) {
+                return localRes;
             }
-        });
+            if (!isHttp) return null;
+        }
+
+        try {
+            const resp = await requestUrl({ url });
+            const ct = resp.headers['content-type'] || resp.headers['Content-Type'] || '';
+            return { buffer: resp.arrayBuffer, contentType: ct };
+        } catch {
+            return null;
+        }
     }
 
     private async loadSourceToCanvas(
@@ -3540,27 +3570,38 @@ export default class PdfPlugin extends Plugin {
     private async fetchUrlAsDataUrl(rawUrl: string): Promise<string> {
         const cached = this.sessionFontUrlCache.get(rawUrl);
         if (cached !== undefined) return cached;
+        const isLocalUrl =
+            !rawUrl.startsWith('http://') && !rawUrl.startsWith('https://') ||
+            rawUrl.startsWith(window.location.origin) ||
+            /^https?:\/\/(?:localhost|127\.0\.0\.1)(?:[:/]|$)/i.test(rawUrl);
         try {
             const fetched = await this.readUrlAsArrayBuffer(rawUrl);
             if (!fetched) {
-                this.sessionFontUrlCache.set(rawUrl, '');
+                if (!isLocalUrl) this.sessionFontUrlCache.set(rawUrl, '');
                 return '';
             }
             const buf = fetched.buffer;
             if (buf.byteLength === 0 || buf.byteLength > 12_000_000) {
-                this.sessionFontUrlCache.set(rawUrl, '');
+                if (!isLocalUrl) this.sessionFontUrlCache.set(rawUrl, '');
                 return '';
             }
-            const mime = fetched.contentType || (
-                rawUrl.toLowerCase().includes('.woff2') ? 'font/woff2' :
-                rawUrl.toLowerCase().includes('.woff') ? 'font/woff' :
-                rawUrl.toLowerCase().includes('.otf') ? 'font/otf' : 'font/ttf'
-            );
+            const cleanUrlPath = rawUrl.split(/[?#]/)[0].toLowerCase();
+            const extMime =
+                cleanUrlPath.endsWith('.woff2') ? 'font/woff2' :
+                cleanUrlPath.endsWith('.woff') ? 'font/woff' :
+                cleanUrlPath.endsWith('.otf') ? 'font/otf' :
+                cleanUrlPath.endsWith('.ttf') ? 'font/ttf' :
+                cleanUrlPath.endsWith('.svg') ? 'image/svg+xml' :
+                cleanUrlPath.endsWith('.png') ? 'image/png' :
+                cleanUrlPath.endsWith('.webp') ? 'image/webp' :
+                (cleanUrlPath.endsWith('.jpg') || cleanUrlPath.endsWith('.jpeg')) ? 'image/jpeg' : '';
+            const rawCt = (fetched.contentType || '').split(';')[0].trim().toLowerCase();
+            const mime = extMime || (rawCt && rawCt !== 'application/octet-stream' && rawCt !== 'text/plain' ? rawCt : 'font/ttf');
             const dataUrl = `data:${mime};base64,${this.arrayBufferToBase64(buf)}`;
             this.sessionFontUrlCache.set(rawUrl, dataUrl);
             return dataUrl;
         } catch {
-            this.sessionFontUrlCache.set(rawUrl, '');
+            if (!isLocalUrl) this.sessionFontUrlCache.set(rawUrl, '');
             return '';
         }
     }
@@ -3583,8 +3624,9 @@ export default class PdfPlugin extends Plugin {
             const baseHref = sheet.href || window.location.href;
             for (let i = 0; i < cssRules.length; i++) {
                 const rule = cssRules[i];
-                if (!(rule instanceof CSSFontFaceRule)) continue;
-                const ffRule = rule;
+                // Use CSSRule.FONT_FACE_RULE (5) instead of instanceof so popout windows work cross-realm
+                if (!rule || rule.type !== 5) continue;
+                const ffRule = rule as CSSFontFaceRule;
                 const rawFamily = ffRule.style.getPropertyValue('font-family').trim().replace(/^["']|["']$/g, '').trim().toLowerCase();
                 if (!rawFamily || !usedFontFamilies.has(rawFamily)) continue;
 
@@ -3830,13 +3872,13 @@ export default class PdfPlugin extends Plugin {
             const rawVal = cs.getPropertyValue(prop);
             if (!rawVal) continue;
             const val = prop === 'text-align' ? normalizeTextAlign(rawVal) : rawVal;
+            if (prop === 'font-family') {
+                this.collectFontFamiliesFromCss(val, usedFontFamilies);
+            }
             const parentRaw = parentCs ? parentCs.getPropertyValue(prop) : '';
             const parentVal = prop === 'text-align' && parentRaw ? normalizeTextAlign(parentRaw) : parentRaw;
             if (isRoot || !parentCs || val !== parentVal) {
                 parts.push(`${prop}:${val}`);
-                if (prop === 'font-family') {
-                    this.collectFontFamiliesFromCss(val, usedFontFamilies);
-                }
             }
         }
 
@@ -4097,7 +4139,12 @@ export default class PdfPlugin extends Plugin {
             (cs.borderRightWidth !== '0px' && cs.borderRightStyle !== 'none') ||
             (cs.borderBottomWidth !== '0px' && cs.borderBottomStyle !== 'none') ||
             (cs.borderLeftWidth !== '0px' && cs.borderLeftStyle !== 'none');
-        if (!text && !hasBg && !hasBgImg && !hasBorder && w <= 0 && h <= 0) return null;
+        const hasPadding =
+            cs.paddingTop !== '0px' ||
+            cs.paddingRight !== '0px' ||
+            cs.paddingBottom !== '0px' ||
+            cs.paddingLeft !== '0px';
+        if (!text && !hasBg && !hasBgImg && !hasBorder && !hasPadding && w <= 0 && h <= 0) return null;
 
         const span = createSpan();
         if (text) span.textContent = text;
@@ -12010,6 +12057,32 @@ export default class PdfPlugin extends Plugin {
 
                 if (hasAsyncWidgets) {
                     await this.yieldFrameSafe(20);
+                }
+
+                // Auto-fit display MathJax blocks that still overflow the current page width
+                // (e.g. when Auto-Landscape is disabled or an equation exceeds even Landscape width).
+                const displayMathEls = Array.from(
+                    pageSizer.querySelectorAll<HTMLElement>('mjx-container[display="true"], .math-block')
+                );
+                const availMathW = Math.max(80, pageSizer.clientWidth || pageLayout.contentWidthPx);
+                for (const mathEl of displayMathEls) {
+                    const mathInner =
+                        mathEl.querySelector<HTMLElement>('mjx-math') ||
+                        mathEl.querySelector<SVGSVGElement>('svg');
+                    const innerRectW = mathInner ? mathInner.getBoundingClientRect().width : 0;
+                    const innerScrollW = mathInner && 'scrollWidth' in mathInner ? (mathInner as HTMLElement).scrollWidth : 0;
+                    const naturalW = Math.max(mathEl.scrollWidth, innerRectW, innerScrollW);
+                    if (naturalW > availMathW + 2) {
+                        const fitRatio = Math.max(0.4, (availMathW - 4) / naturalW);
+                        if (mathInner && mathInner.tagName.toLowerCase() === 'svg') {
+                            mathInner.style.maxWidth = '100%';
+                            mathInner.style.height = 'auto';
+                        } else {
+                            const baseFontPx = parseFloat(window.getComputedStyle(mathEl).fontSize) || 16;
+                            mathEl.style.fontSize = `${Math.max(7, baseFontPx * fitRatio)}px`;
+                            mathEl.style.maxWidth = '100%';
+                        }
+                    }
                 }
 
                 // Safety overflow check: if margin/font differences pushed the last item over 1 page,
