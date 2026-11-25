@@ -8808,22 +8808,33 @@ export default class PdfPlugin extends Plugin {
      * over wrapped text nodes (O(lines * log(chars)) — ~0.5ms/page even on 18k-word notes).
      */
     private extractPageTextSpans(pageWrapper: HTMLElement): CachedPdfTextSpan[] {
-        const pageRect = pageWrapper.getBoundingClientRect();
-        if (pageRect.width <= 0 || pageRect.height <= 0) return [];
+        let pageRect = pageWrapper.getBoundingClientRect();
+        if (pageRect.width <= 0 || pageRect.height <= 0) {
+            const sizerFallback = pageWrapper.querySelector<HTMLElement>('.markdown-preview-sizer');
+            const sizerRect = sizerFallback?.getBoundingClientRect();
+            if (sizerRect && sizerRect.width > 0 && sizerRect.height > 0) {
+                pageRect = sizerRect;
+            } else if (pageWrapper.scrollWidth <= 0 || pageWrapper.scrollHeight <= 0) {
+                return [];
+            }
+        }
 
+        const docRef = pageWrapper.ownerDocument || activeDocument;
+        const winRef = docRef.defaultView || window;
         const rawSpans: CachedPdfTextSpan[] = [];
-        const range = activeDocument.createRange();
+        const range = docRef.createRange();
         const styleCache = new Map<HTMLElement, CSSStyleDeclaration>();
         const getStyle = (el: HTMLElement): CSSStyleDeclaration => {
             let cs = styleCache.get(el);
             if (!cs) {
-                cs = window.getComputedStyle(el);
+                cs = winRef.getComputedStyle(el);
                 styleCache.set(el, cs);
             }
             return cs;
         };
+        const rootVisibility = getStyle(pageWrapper).visibility;
 
-        const walker = activeDocument.createTreeWalker(pageWrapper, NodeFilter.SHOW_TEXT);
+        const walker = docRef.createTreeWalker(pageWrapper, NodeFilter.SHOW_TEXT);
         let currentNode: Node | null;
         while ((currentNode = walker.nextNode())) {
             const textNode = currentNode as Text;
@@ -8832,11 +8843,14 @@ export default class PdfPlugin extends Plugin {
 
             const parentEl = textNode.parentElement;
             if (!parentEl) continue;
-            if (parentEl.closest('style, script, noscript, svg, mjx-container')) continue;
-            if (parentEl.closest(PdfPlugin.PDF_EXCLUDED_UI_SELECTOR)) continue;
+            const skippedTagAncestor = parentEl.closest('style, script, noscript, svg, mjx-container');
+            if (skippedTagAncestor && pageWrapper.contains(skippedTagAncestor)) continue;
+            const excludedUiAncestor = parentEl.closest(PdfPlugin.PDF_EXCLUDED_UI_SELECTOR);
+            if (excludedUiAncestor && pageWrapper.contains(excludedUiAncestor)) continue;
 
             const cs = getStyle(parentEl);
-            if (cs.display === 'none' || cs.visibility === 'hidden' || parseFloat(cs.opacity) === 0) continue;
+            if (cs.display === 'none' || parseFloat(cs.opacity) === 0) continue;
+            if (cs.visibility === 'hidden' && rootVisibility !== 'hidden') continue;
 
             const fontSizePx = parseFloat(cs.fontSize) || 14;
             const spanDir: 'ltr' | 'rtl' = cs.direction === 'rtl' ? 'rtl' : 'ltr';
@@ -8844,7 +8858,6 @@ export default class PdfPlugin extends Plugin {
 
             range.selectNodeContents(textNode);
             const fullRects = range.getClientRects();
-            if (fullRects.length === 0) continue;
 
             // Collect non-empty rects from full node to check the single-line fast path
             let firstValid: DOMRect | null = null;
@@ -8872,7 +8885,20 @@ export default class PdfPlugin extends Plugin {
                 if (r.bottom > maxB) maxB = r.bottom;
             }
 
-            if (!firstValid) continue;
+            // Fallback to parent element box if Range.getClientRects() returned empty on a visible node
+            if (!firstValid) {
+                const pr = parentEl.getBoundingClientRect();
+                if (pr.width > 0.1 && pr.height > 0.1) {
+                    firstValid = pr;
+                    allSameLine = true;
+                    minL = pr.left;
+                    minT = pr.top;
+                    maxR = pr.right;
+                    maxB = pr.bottom;
+                } else {
+                    continue;
+                }
+            }
 
             if (allSameLine) {
                 const normalized = preserveWs ? raw.replace(/[\r\n]+/g, '') : raw.replace(/[\r\n\t ]+/g, ' ');
@@ -9184,7 +9210,17 @@ export default class PdfPlugin extends Plugin {
                     horizontalScale: hScale
                 });
             } catch {
-                // Skip any exotic glyph sequence safely without aborting PDF generation
+                // Direct PDF operator fallback so invisible selectable text is never silently dropped
+                try {
+                    const xPt = docInternal.getCoordinateString(xMm);
+                    const yPt = docInternal.getVerticalCoordinateString(yBaselineMm);
+                    const escaped = docInternal.pdfEscape(encoded);
+                    docInternal.out(
+                        `q BT 3 Tr /F1 ${fontSizePt} Tf ${(hScale * 100).toFixed(2)} Tz 1 0 0 1 ${xPt} ${yPt} Tm (${escaped}) Tj ET Q`
+                    );
+                } catch {
+                    // Ignore safely without aborting PDF generation
+                }
             }
         }
 
@@ -9480,9 +9516,15 @@ export default class PdfPlugin extends Plugin {
         const anchors: CachedPdfAnchor[] = [];
         const links: CachedPdfLink[] = [];
 
-        const rootRect = pageWrapper.getBoundingClientRect();
+        let rootRect = pageWrapper.getBoundingClientRect();
         if (rootRect.width <= 0 || rootRect.height <= 0) {
-            return { headings, anchors, links };
+            const sizerFallback = pageWrapper.querySelector<HTMLElement>('.markdown-preview-sizer');
+            const sizerRect = sizerFallback?.getBoundingClientRect();
+            if (sizerRect && sizerRect.width > 0 && sizerRect.height > 0) {
+                rootRect = sizerRect;
+            } else if (pageWrapper.scrollWidth <= 0 || pageWrapper.scrollHeight <= 0) {
+                return { headings, anchors, links };
+            }
         }
 
         const noteBasenameLower = (file.basename || '').trim().toLowerCase();
@@ -10531,17 +10573,20 @@ export default class PdfPlugin extends Plugin {
                     const slice = cachedPage.slices[sIdx];
                     const sliceTop = slice.sliceTopCssPx ?? 0;
                     const sliceBottom = slice.sliceBottomCssPx ?? Infinity;
-                    doc.addImage(slice.imgData, slice.format, pageLayout.margin, pageLayout.topMargin, pageLayout.contentWidthMm, slice.heightMm, undefined, 'FAST');
+                    const sliceX = slice.xMm ?? pageLayout.margin;
+                    const sliceW = slice.widthMm ?? pageLayout.contentWidthMm;
+                    const sliceMmPerPx = slice.mmPerPx ?? pageLayout.mmPerPx;
+                    doc.addImage(slice.imgData, slice.format, sliceX, pageLayout.topMargin, sliceW, slice.heightMm, undefined, 'FAST');
                     this.drawInvisibleTextLayer(
                         doc,
                         cachedPage.textSpans,
                         activeJsPdfFont,
                         isCustomUnicodeFont,
-                        pageLayout.margin,
+                        sliceX,
                         pageLayout.topMargin,
                         pageLayout.pageWidth,
                         pageLayout.pageHeight,
-                        pageLayout.mmPerPx,
+                        sliceMmPerPx,
                         sliceTop,
                         sliceBottom
                     );
@@ -10551,7 +10596,7 @@ export default class PdfPlugin extends Plugin {
                         sliceBottomCssPx: sliceBottom,
                         pageWidthMm: pageLayout.pageWidth,
                         pageHeightMm: pageLayout.pageHeight,
-                        mmPerPx: pageLayout.mmPerPx,
+                        mmPerPx: sliceMmPerPx,
                         headings: cachedPage.headings || [],
                         anchors: cachedPage.anchors || [],
                         links: cachedPage.links || []
@@ -10860,6 +10905,25 @@ export default class PdfPlugin extends Plugin {
             const readingEl = viewContentEl.createDiv({ cls: 'markdown-reading-view' });
             const previewEl = readingEl.createDiv({ cls: previewViewCls });
             const sectionSizerEl = previewEl.createDiv({ cls: 'markdown-preview-sizer markdown-preview-section' });
+
+            // Enforce layout & visibility inline so Obsidian mobile/theme rules cannot collapse
+            // .workspace-leaf / .markdown-preview-view or hide text nodes during DOM measurement.
+            const wrappers = [leafEl, leafContentEl, viewContentEl, readingEl, previewEl, sectionSizerEl];
+            for (let i = 0; i < wrappers.length; i++) {
+                const w = wrappers[i];
+                w.style.setProperty('width', '100%', 'important');
+                w.style.setProperty('max-width', '100%', 'important');
+                w.style.setProperty('min-height', '0', 'important');
+                w.style.setProperty('height', 'auto', 'important');
+                w.style.setProperty('overflow', 'visible', 'important');
+                w.style.setProperty('visibility', 'visible', 'important');
+                w.style.setProperty('content-visibility', 'visible', 'important');
+            }
+            leafEl.style.setProperty('display', 'block', 'important');
+            leafEl.style.setProperty('position', 'relative', 'important');
+            leafEl.style.setProperty('contain', 'none', 'important');
+            sectionSizerEl.style.setProperty('display', 'flow-root', 'important');
+
             return { leafEl, leafContentEl, readingEl, previewEl, sectionSizerEl };
         };
 
@@ -11880,6 +11944,7 @@ export default class PdfPlugin extends Plugin {
                 pageWrapper.style.backgroundColor = bgHex;
 
                 for (const el of page.elements) {
+                    el.style.setProperty('content-visibility', 'visible', 'important');
                     pageSizer.appendChild(el);
                 }
 
