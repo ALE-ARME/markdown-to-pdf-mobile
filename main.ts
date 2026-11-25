@@ -8250,13 +8250,10 @@ export default class PdfPlugin extends Plugin {
     private static readonly BIDI_DIGIT_RE = /^[0-9\u0660-\u0669\u06F0-\u06F9]$/;
     private static readonly BIDI_LTR_RE = /[\p{L}\u200E]/u;
     private static readonly BIDI_COMBINING_RE = /^[\p{Mn}\p{Me}\uFE0E\uFE0F]$/u;
-    private static readonly BIDI_MIRROR_MAP: Record<string, string> = {
-        '(': ')', ')': '(',
-        '[': ']', ']': '[',
-        '{': '}', '}': '{',
-        '<': '>', '>': '<',
-        '\u00AB': '\u00BB', '\u00BB': '\u00AB',
-        '\u2039': '\u203A', '\u203A': '\u2039'
+    private static readonly BIDI_OPEN_TO_CLOSE: Record<string, string> = {
+        '(': ')',
+        '[': ']',
+        '{': '}'
     };
 
     private hasRtlChars(text: string): boolean {
@@ -8266,15 +8263,17 @@ export default class PdfPlugin extends Plugin {
     /**
      * Splits a text span containing RTL scripts (Arabic, Hebrew, Persian, Urdu, etc.)—including
      * mixed LTR+RTL lines—into pure directional runs using UAX #9 rules.
+     * - Respects explicit DOM CSS direction (`ltr` / `rtl`); only falls back to first-strong detection
+     *   when `baseDirHint` is undefined (e.g. `unicode-bidi: plaintext`).
      * - Returns runs in LOGICAL stream order so a single copy-paste in PDF viewers preserves exact reading order.
-     * - Reverses code points & mirrors brackets inside RTL runs into PDF visual LTR order so PDF.js,
-     *   Chrome PDFium, and Adobe Acrobat extract them back in the right direction.
+     * - Reverses code points inside RTL runs into PDF visual LTR order without mirroring brackets
+     *   (PDF.js `bidi()` reverses character order back to logical without un-mirroring brackets).
      * - Returns `visualOrder` so each run is placed at its exact left-to-right visual X coordinate on screen.
      */
     private splitBidiRunsForPdf(
         text: string,
         baseDirHint?: 'ltr' | 'rtl'
-    ): { runs: Array<{ visualText: string; isRtl: boolean }>; visualOrder: number[] } {
+    ): { runs: Array<{ visualText: string; isRtl: boolean }>; visualOrder: number[]; baseDir: 'ltr' | 'rtl' } {
         const chars = Array.from(text);
         const types: Array<'R' | 'L' | 'EN' | 'N'> = new Array<'R' | 'L' | 'EN' | 'N'>(chars.length);
 
@@ -8293,8 +8292,11 @@ export default class PdfPlugin extends Plugin {
             }
         }
 
-        let baseDir: 'ltr' | 'rtl' = baseDirHint === 'rtl' ? 'rtl' : 'ltr';
-        if (baseDirHint !== 'rtl') {
+        let baseDir: 'ltr' | 'rtl';
+        if (baseDirHint === 'ltr' || baseDirHint === 'rtl') {
+            baseDir = baseDirHint;
+        } else {
+            baseDir = 'ltr';
             for (let i = 0; i < types.length; i++) {
                 if (types[i] === 'R') {
                     baseDir = 'rtl';
@@ -8362,6 +8364,38 @@ export default class PdfPlugin extends Plugin {
             i = j;
         }
 
+        // Keep matched bracket pairs (e.g. "(Arabic 123)", "(world)") at the level of their
+        // enclosed strong characters so closing brackets do not detach into opposite-direction runs.
+        const openStack: Array<{ idx: number; close: string }> = [];
+        for (let k = 0; k < chars.length; k++) {
+            const ch = chars[k];
+            const close = PdfPlugin.BIDI_OPEN_TO_CLOSE[ch];
+            if (close) {
+                openStack.push({ idx: k, close });
+            } else if (ch === ')' || ch === ']' || ch === '}') {
+                for (let s = openStack.length - 1; s >= 0; s--) {
+                    if (openStack[s].close === ch) {
+                        const openIdx = openStack[s].idx;
+                        openStack.length = s;
+                        let innerR = false;
+                        let innerL = false;
+                        for (let m = openIdx + 1; m < k; m++) {
+                            if (types[m] === 'R') innerR = true;
+                            else if (types[m] === 'L' || types[m] === 'EN') innerL = true;
+                        }
+                        if (innerL && !innerR) {
+                            levels[openIdx] = ltrLevel;
+                            levels[k] = ltrLevel;
+                        } else if (innerR && !innerL) {
+                            levels[openIdx] = 1;
+                            levels[k] = 1;
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+
         const grouped: Array<{ level: number; isRtl: boolean; chars: string[] }> = [];
         for (let k = 0; k < chars.length; k++) {
             const lv = levels[k];
@@ -8378,8 +8412,7 @@ export default class PdfPlugin extends Plugin {
             }
             const rev: string[] = new Array<string>(g.chars.length);
             for (let k = 0; k < g.chars.length; k++) {
-                const ch = g.chars[g.chars.length - 1 - k];
-                rev[k] = PdfPlugin.BIDI_MIRROR_MAP[ch] ?? ch;
+                rev[k] = g.chars[g.chars.length - 1 - k];
             }
             return { visualText: rev.join(''), isRtl: true };
         });
@@ -8388,7 +8421,7 @@ export default class PdfPlugin extends Plugin {
         if (baseDir === 'rtl') {
             visualOrder.reverse();
         }
-        return { runs, visualOrder };
+        return { runs, visualOrder, baseDir };
     }
 
     private encodeTextForWinAnsiLayer(cleanedText: string): string {
@@ -8853,7 +8886,12 @@ export default class PdfPlugin extends Plugin {
             if (cs.visibility === 'hidden' && rootVisibility !== 'hidden') continue;
 
             const fontSizePx = parseFloat(cs.fontSize) || 14;
-            const spanDir: 'ltr' | 'rtl' = cs.direction === 'rtl' ? 'rtl' : 'ltr';
+            const spanDir: 'ltr' | 'rtl' | undefined =
+                cs.direction === 'rtl'
+                    ? 'rtl'
+                    : cs.unicodeBidi === 'plaintext'
+                        ? undefined
+                        : 'ltr';
             const preserveWs = cs.whiteSpace === 'pre' || cs.whiteSpace === 'pre-wrap' || cs.whiteSpace === 'break-spaces';
 
             range.selectNodeContents(textNode);
@@ -9106,17 +9144,32 @@ export default class PdfPlugin extends Plugin {
                 const uniState = this.getOrAttachUnicodeTextLayer(doc);
                 if (uniState) {
                     const textForUnicode = shouldDefuseAutoLinks ? defuseAutoLinks(cleanedRaw, '\u200B') : cleanedRaw;
-                    const encodeRunToHex = (runText: string): { hexCids: string; widthEm: number } => {
+                    const encodeRunToHex = (runText: string, preserveBoundarySpaces: boolean = false): { hexCids: string; widthEm: number } => {
+                        const glyphs = Array.from(runText);
+                        if (preserveBoundarySpaces && glyphs.length >= 2) {
+                            // Combine boundary ASCII spaces with the adjacent glyph in /ToUnicode so PDF.js
+                            // does not strip inter-run spaces when X moves right-to-left on RTL base lines.
+                            if (glyphs[0] === ' ' && glyphs[1] !== ' ') {
+                                glyphs.splice(0, 2, ' ' + glyphs[1]);
+                            }
+                            if (glyphs.length >= 2 && glyphs[glyphs.length - 1] === ' ' && glyphs[glyphs.length - 2] !== ' ') {
+                                glyphs.splice(glyphs.length - 2, 2, glyphs[glyphs.length - 2] + ' ');
+                            }
+                        }
                         let hexCids = '';
                         let widthEm = 0;
-                        for (const ch of runText) {
-                            let cid = uniState.charToCid.get(ch);
+                        for (const token of glyphs) {
+                            let cid = uniState.charToCid.get(token);
                             if (cid === undefined) {
                                 if (uniState.cidToChar.length >= 65535) continue;
                                 cid = uniState.cidToChar.length;
-                                uniState.charToCid.set(ch, cid);
-                                uniState.cidToChar.push(ch);
-                                uniState.cidWidths.push(this.measureUnicodeCharWidthEm(ch));
+                                uniState.charToCid.set(token, cid);
+                                uniState.cidToChar.push(token);
+                                let tokenWidth = 0;
+                                for (const ch of token) {
+                                    tokenWidth += this.measureUnicodeCharWidthEm(ch);
+                                }
+                                uniState.cidWidths.push(tokenWidth || 500);
                             }
                             widthEm += (uniState.cidWidths[cid] ?? 500) / 1000;
                             hexCids += cid.toString(16).toUpperCase().padStart(4, '0');
@@ -9125,8 +9178,9 @@ export default class PdfPlugin extends Plugin {
                     };
 
                     if (this.hasRtlChars(textForUnicode)) {
-                        const { runs, visualOrder } = this.splitBidiRunsForPdf(textForUnicode, span.dir);
-                        const encodedRuns = runs.map((r) => encodeRunToHex(r.visualText));
+                        const { runs, visualOrder, baseDir } = this.splitBidiRunsForPdf(textForUnicode, span.dir);
+                        const preserveBoundarySpaces = baseDir === 'rtl' && runs.length > 1;
+                        const encodedRuns = runs.map((r) => encodeRunToHex(r.visualText, preserveBoundarySpaces));
                         const totalEm = encodedRuns.reduce((acc, er) => acc + Math.max(0.1, er.widthEm), 0);
 
                         // Compute left-to-right visual X placement for each run
@@ -9142,20 +9196,26 @@ export default class PdfPlugin extends Plugin {
                             cursorXPx += wPx;
                         }
 
-                        // Emit runs in logical stream order so one drag-select & copy yields exact logical text
+                        // Emit runs in logical stream order so one drag-select & copy yields exact logical text.
+                        // On mixed LTR+RTL lines, offset RTL run fontSize by +0.01pt (imperceptible visually)
+                        // so PDF.js flushes separate TextItems at every directional boundary instead of merging
+                        // LTR+RTL runs into one chunk and letting its >=30% RTL heuristic flip the whole line.
                         const yPt = docInternal.getVerticalCoordinateString(yBaselineMm);
                         let emittedAny = false;
                         for (let rIdx = 0; rIdx < encodedRuns.length; rIdx++) {
                             const er = encodedRuns[rIdx];
                             if (!er.hexCids) continue;
-                            const naturalWidthMm = er.widthEm * (fontSizePt / ptPerMm);
+                            const runFontSizePt = runs.length > 1 && runs[rIdx].isRtl
+                                ? Math.round((fontSizePt + 0.01) * 100) / 100
+                                : fontSizePt;
+                            const naturalWidthMm = er.widthEm * (runFontSizePt / ptPerMm);
                             const hScalePercent = naturalWidthMm > 0.2 && runWidthMm[rIdx] > 0.2
                                 ? Math.max(50, Math.min(200, (runWidthMm[rIdx] / naturalWidthMm) * 100))
                                 : 100;
                             const xPt = docInternal.getCoordinateString(runXMm[rIdx]);
                             try {
                                 docInternal.out(
-                                    `q BT 3 Tr /${uniState.fontId} ${fontSizePt} Tf ${hScalePercent.toFixed(2)} Tz 1 0 0 1 ${xPt} ${yPt} Tm <${er.hexCids}> Tj ET Q`
+                                    `q BT 3 Tr /${uniState.fontId} ${runFontSizePt} Tf ${hScalePercent.toFixed(2)} Tz 1 0 0 1 ${xPt} ${yPt} Tm <${er.hexCids}> Tj ET Q`
                                 );
                                 emittedAny = true;
                             } catch {
