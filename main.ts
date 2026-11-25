@@ -245,6 +245,7 @@ interface CachedPdfTextSpan {
     heightPx: number;
     fontSizePx: number;
     dir?: 'ltr' | 'rtl';
+    bidiRunRects?: Array<{ xPx: number; widthPx: number }>;
 }
 
 interface CachedPdfHeading {
@@ -3527,7 +3528,7 @@ export default class PdfPlugin extends Plugin {
         'small,sub,sup{font-size:inherit;}',
         'mark{color:inherit;}',
         'a{color:inherit;text-decoration:none;}',
-        'p,h1,h2,h3,h4,h5,h6,ul,ol,li,blockquote,pre,figure,figcaption,caption,hr,dl,dd{margin:0;padding:0;}',
+        'p,h1,h2,h3,h4,h5,h6,ul,ol,li,blockquote,pre,figure,figcaption,caption,hr,dl,dd,table,thead,tbody,tfoot,tr,td,th{margin:0;padding:0;}',
         'ul,ol,ul ul,ul ul ul,ol ul,ol ol,li{list-style-type:inherit;list-style-position:inherit;}',
         'th,caption{text-align:inherit;}',
         'hr{border:0;}',
@@ -3883,7 +3884,22 @@ export default class PdfPlugin extends Plugin {
         }
 
         // 2. Display & box model
-        const display = cs.display;
+        // Elements with overflow:auto/scroll (e.g. Obsidian's <div style="overflow-x:auto"> wrapper around every
+        // <table> and scrollable math/code containers) or layout containment establish a Block Formatting Context (BFC)
+        // in the live DOM, preventing child margins from collapsing with outside siblings. Since we omit overflow:auto/scroll
+        // below to avoid static scrollbars, promote display:block -> display:flow-root so the BFC and vertical flow
+        // inside <foreignObject> match the live DOM to the exact pixel (zero text-layer or link-hitbox drift).
+        const rawDisplay = cs.display;
+        const containVal = cs.getPropertyValue('contain') || '';
+        const createsBfcWithoutOverflow =
+            !isRoot &&
+            rawDisplay === 'block' &&
+            (
+                cs.overflowX === 'auto' || cs.overflowX === 'scroll' ||
+                cs.overflowY === 'auto' || cs.overflowY === 'scroll' ||
+                containVal.includes('layout') || containVal.includes('content') || containVal === 'strict'
+            );
+        const display = createsBfcWithoutOverflow ? 'flow-root' : rawDisplay;
         if (display) parts.push(`display:${display}`);
         if (cs.boxSizing && cs.boxSizing !== 'border-box') {
             parts.push(`box-sizing:${cs.boxSizing}`);
@@ -3905,6 +3921,9 @@ export default class PdfPlugin extends Plugin {
         // Do NOT freeze computed pixel widths onto auto-sized <table>/<td>/<th> cells (avoids subpixel last-letter wrapping and height drift).
         const tag = el.tagName;
         const isMathJaxEl = tag.startsWith('MJX-');
+        const isDisplayMathContainer =
+            (tag === 'MJX-CONTAINER' && el.getAttribute('display') === 'true') ||
+            el.classList.contains('math-block');
         const isImgSlot = el.hasAttribute('data-pdf-img-id');
         const isPosNonStatic = cs.position && cs.position !== 'static';
         if (!isRoot) {
@@ -3916,9 +3935,9 @@ export default class PdfPlugin extends Plugin {
             const parentW = parentCs ? parseFloat(parentCs.width) : 0;
             const selfW = parseFloat(cs.width);
             const hasExplicitInlineWidth = Boolean(el.style && el.style.width && el.style.width !== 'auto');
-            const isInlineSized = display === 'inline-block' || display === 'inline-flex' || display === 'inline-grid';
+            const isInlineSized = rawDisplay === 'inline-block' || rawDisplay === 'inline-flex' || rawDisplay === 'inline-grid';
             const isEmptyOrReplaced = tag === 'IMG' || tag === 'CANVAS' || tag === 'SVG' || el.childNodes.length === 0;
-            const isTableEl = tag === 'TABLE' || display === 'table' || display === 'inline-table';
+            const isTableEl = tag === 'TABLE' || rawDisplay === 'table' || rawDisplay === 'inline-table';
             const isTableCell = tag === 'TD' || tag === 'TH';
             const isFullWidthTable = isTableEl && parentW > 0 && selfW >= parentW - 2;
             const isFrontmatterKey = el.classList.contains('pdf-frontmatter-key');
@@ -3931,7 +3950,7 @@ export default class PdfPlugin extends Plugin {
                 (isTableEl && (hasExplicitInlineWidth || isFullWidthTable)) ||
                 (isTableCell && hasExplicitInlineWidth) ||
                 (isInlineSized && (hasExplicitInlineWidth || isEmptyOrReplaced)) ||
-                (display === 'block' && parentW > 0 && selfW > 0 && selfW < parentW - 1.5);
+                (rawDisplay === 'block' && parentW > 0 && selfW > 0 && selfW < parentW - 1.5);
             if (needsWidth && cs.width && cs.width !== 'auto') {
                 parts.push(`width:${cs.width}`);
             }
@@ -3940,6 +3959,7 @@ export default class PdfPlugin extends Plugin {
             const isOverflowClippedBox = (cs.overflowX === 'hidden' || cs.overflowX === 'clip' || cs.overflowY === 'hidden' || cs.overflowY === 'clip') && cs.height && cs.height !== 'auto';
             const needsHeight =
                 isImgSlot ||
+                isDisplayMathContainer ||
                 tag === 'HR' || tag === 'IMG' ||
                 hasExplicitInlineHeight ||
                 hasAspectRatio ||
@@ -8320,8 +8340,14 @@ export default class PdfPlugin extends Plugin {
     private splitBidiRunsForPdf(
         text: string,
         baseDirHint?: 'ltr' | 'rtl'
-    ): { runs: Array<{ visualText: string; isRtl: boolean }>; visualOrder: number[]; baseDir: 'ltr' | 'rtl' } {
+    ): { runs: Array<{ visualText: string; isRtl: boolean; start: number; end: number }>; visualOrder: number[]; baseDir: 'ltr' | 'rtl' } {
         const chars = Array.from(text);
+        const charStarts = new Array<number>(chars.length);
+        let utf16Cursor = 0;
+        for (let i = 0; i < chars.length; i++) {
+            charStarts[i] = utf16Cursor;
+            utf16Cursor += chars[i].length;
+        }
         const types: Array<'R' | 'L' | 'EN' | 'N'> = new Array<'R' | 'L' | 'EN' | 'N'>(chars.length);
 
         for (let i = 0; i < chars.length; i++) {
@@ -8443,25 +8469,29 @@ export default class PdfPlugin extends Plugin {
             }
         }
 
-        const grouped: Array<{ level: number; isRtl: boolean; chars: string[] }> = [];
+        const grouped: Array<{ level: number; isRtl: boolean; chars: string[]; start: number; end: number }> = [];
         for (let k = 0; k < chars.length; k++) {
             const lv = levels[k];
+            const cStart = charStarts[k];
+            const cEnd = cStart + chars[k].length;
             if (grouped.length === 0 || grouped[grouped.length - 1].level !== lv) {
-                grouped.push({ level: lv, isRtl: (lv & 1) === 1, chars: [chars[k]] });
+                grouped.push({ level: lv, isRtl: (lv & 1) === 1, chars: [chars[k]], start: cStart, end: cEnd });
             } else {
-                grouped[grouped.length - 1].chars.push(chars[k]);
+                const last = grouped[grouped.length - 1];
+                last.chars.push(chars[k]);
+                last.end = cEnd;
             }
         }
 
         const runs = grouped.map((g) => {
             if (!g.isRtl) {
-                return { visualText: g.chars.join(''), isRtl: false };
+                return { visualText: g.chars.join(''), isRtl: false, start: g.start, end: g.end };
             }
             const rev: string[] = new Array<string>(g.chars.length);
             for (let k = 0; k < g.chars.length; k++) {
                 rev[k] = g.chars[g.chars.length - 1 - k];
             }
-            return { visualText: rev.join(''), isRtl: true };
+            return { visualText: rev.join(''), isRtl: true, start: g.start, end: g.end };
         });
 
         const visualOrder = runs.map((_, idx) => idx);
@@ -8901,7 +8931,21 @@ export default class PdfPlugin extends Plugin {
 
         const docRef = pageWrapper.ownerDocument || activeDocument;
         const winRef = docRef.defaultView || window;
-        const rawSpans: CachedPdfTextSpan[] = [];
+        interface SpanDomPiece {
+            node: Text;
+            rawStart: number;
+            rawEnd: number;
+            preserveWs: boolean;
+            needsSpaceBefore?: boolean;
+        }
+        interface WorkingSpan extends CachedPdfTextSpan {
+            blockRoot: HTMLElement | null;
+            isCode: boolean;
+            pieces: SpanDomPiece[];
+            firstNode: Text;
+            lastNode: Text;
+        }
+        const rawSpans: WorkingSpan[] = [];
         const range = docRef.createRange();
         const styleCache = new Map<HTMLElement, CSSStyleDeclaration>();
         const getStyle = (el: HTMLElement): CSSStyleDeclaration => {
@@ -8913,6 +8957,88 @@ export default class PdfPlugin extends Plugin {
             return cs;
         };
         const rootVisibility = getStyle(pageWrapper).visibility;
+
+        const firstStrongDirInString = (str: string): 'ltr' | 'rtl' | null => {
+            for (const ch of str) {
+                if (PdfPlugin.RTL_CHAR_RE.test(ch)) return 'rtl';
+                if (PdfPlugin.BIDI_LTR_RE.test(ch)) return 'ltr';
+            }
+            return null;
+        };
+
+        const BLOCK_ROOT_SELECTOR =
+            'td, th, li, p, h1, h2, h3, h4, h5, h6, pre, blockquote, figcaption, caption, dt, dd, .callout-title, .pdf-frontmatter-key, .pdf-frontmatter-val';
+        const OBSTACLE_SELECTOR = 'mjx-container, svg, img, canvas, input, br, hr';
+
+        // Cache paragraph-level UAX #9 P2/P3 base direction for `unicode-bidi: plaintext` / `dir="auto"`
+        // so soft-wrapped continuation lines inherit the paragraph's base direction instead of flipping
+        // whenever a wrapped line happens to start with an RTL or LTR word.
+        const blockPlaintextDirCache = new Map<HTMLElement, 'ltr' | 'rtl'>();
+        const resolvePlaintextDir = (
+            textNode: Text,
+            parentEl: HTMLElement,
+            preserveWs: boolean,
+            raw: string,
+            sliceStart: number
+        ): 'ltr' | 'rtl' => {
+            if (preserveWs) {
+                const lineStart = raw.lastIndexOf('\n', Math.max(0, sliceStart - 1)) + 1;
+                const lineEndIdx = raw.indexOf('\n', sliceStart);
+                const lineEnd = lineEndIdx === -1 ? raw.length : lineEndIdx;
+                return firstStrongDirInString(raw.slice(lineStart, lineEnd)) ?? 'ltr';
+            }
+            const blockEl = parentEl.closest<HTMLElement>(BLOCK_ROOT_SELECTOR);
+            const scopeEl = blockEl && pageWrapper.contains(blockEl) ? blockEl : parentEl;
+            if (!scopeEl.querySelector('br')) {
+                const cached = blockPlaintextDirCache.get(scopeEl);
+                if (cached) return cached;
+                let detected: 'ltr' | 'rtl' | null = null;
+                const bw = docRef.createTreeWalker(scopeEl, NodeFilter.SHOW_TEXT);
+                let n: Node | null;
+                while ((n = bw.nextNode())) {
+                    const pe = (n as Text).parentElement;
+                    if (pe && pe.closest('style, script, noscript, svg, mjx-container')) continue;
+                    const d = firstStrongDirInString((n as Text).data);
+                    if (d) {
+                        detected = d;
+                        break;
+                    }
+                }
+                const resolved = detected ?? 'ltr';
+                blockPlaintextDirCache.set(scopeEl, resolved);
+                return resolved;
+            }
+            // Block contains <br> paragraph separators: resolve within the <br>-bounded segment containing textNode
+            let segDir: 'ltr' | 'rtl' | null = null;
+            let foundSelf = false;
+            const bw = docRef.createTreeWalker(scopeEl, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT);
+            let n: Node | null;
+            while ((n = bw.nextNode())) {
+                if (n.nodeType === Node.ELEMENT_NODE) {
+                    if ((n as HTMLElement).tagName === 'BR') {
+                        if (foundSelf) break;
+                        segDir = null;
+                    }
+                } else if (n.nodeType === Node.TEXT_NODE) {
+                    if (n === textNode) foundSelf = true;
+                    if (!segDir) {
+                        const pe = (n as Text).parentElement;
+                        if (!pe || !pe.closest('style, script, noscript, svg, mjx-container')) {
+                            segDir = firstStrongDirInString((n as Text).data);
+                        }
+                    }
+                }
+            }
+            return segDir ?? 'ltr';
+        };
+
+        const trimWhitespaceOffsets = (str: string, start: number, end: number): { s: number; e: number } => {
+            let s = start;
+            let e = end;
+            while (s < e && /\s/.test(str[s])) s++;
+            while (e > s && /\s/.test(str[e - 1])) e--;
+            return { s, e };
+        };
 
         const walker = docRef.createTreeWalker(pageWrapper, NodeFilter.SHOW_TEXT);
         let currentNode: Node | null;
@@ -8933,18 +9059,30 @@ export default class PdfPlugin extends Plugin {
             if (cs.visibility === 'hidden' && rootVisibility !== 'hidden') continue;
 
             const fontSizePx = parseFloat(cs.fontSize) || 14;
-            const spanDir: 'ltr' | 'rtl' | undefined =
-                cs.direction === 'rtl'
-                    ? 'rtl'
-                    : cs.unicodeBidi === 'plaintext'
-                        ? undefined
-                        : 'ltr';
+            const isPlaintextBidi =
+                cs.unicodeBidi === 'plaintext' ||
+                parentEl.getAttribute('dir') === 'auto' ||
+                Boolean(parentEl.closest('[dir="auto"]'));
             const preserveWs = cs.whiteSpace === 'pre' || cs.whiteSpace === 'pre-wrap' || cs.whiteSpace === 'break-spaces';
+            const rawBlockRoot = parentEl.closest<HTMLElement>(BLOCK_ROOT_SELECTOR);
+            const blockRoot = rawBlockRoot && pageWrapper.contains(rawBlockRoot) ? rawBlockRoot : null;
+            const isCode = Boolean(parentEl.closest('code, kbd, samp, pre, tt'));
 
-            range.selectNodeContents(textNode);
+            const getLineDir = (sliceStart: number): 'ltr' | 'rtl' => {
+                if (isPlaintextBidi) {
+                    return resolvePlaintextDir(textNode, parentEl, preserveWs, raw, sliceStart);
+                }
+                return cs.direction === 'rtl' ? 'rtl' : 'ltr';
+            };
+
+            const trimmedFull = trimWhitespaceOffsets(raw, 0, raw.length);
+            if (trimmedFull.e <= trimmedFull.s) continue;
+
+            range.setStart(textNode, trimmedFull.s);
+            range.setEnd(textNode, trimmedFull.e);
             const fullRects = range.getClientRects();
 
-            // Collect non-empty rects from full node to check the single-line fast path
+            // Collect non-empty rects from trimmed full node to check the single-line fast path
             let firstValid: DOMRect | null = null;
             let allSameLine = true;
             let minL = Infinity;
@@ -8986,7 +9124,8 @@ export default class PdfPlugin extends Plugin {
             }
 
             if (allSameLine) {
-                const normalized = preserveWs ? raw.replace(/[\r\n]+/g, '') : raw.replace(/[\r\n\t ]+/g, ' ');
+                const sliceRaw = raw.slice(trimmedFull.s, trimmedFull.e);
+                const normalized = preserveWs ? sliceRaw.replace(/[\r\n]+/g, '') : sliceRaw.replace(/[\r\n\t ]+/g, ' ');
                 if (normalized.trim().length > 0 && maxR > minL) {
                     rawSpans.push({
                         text: normalized,
@@ -8995,7 +9134,12 @@ export default class PdfPlugin extends Plugin {
                         widthPx: maxR - minL,
                         heightPx: Math.max(1, maxB - minT),
                         fontSizePx,
-                        dir: spanDir
+                        dir: getLineDir(trimmedFull.s),
+                        blockRoot,
+                        isCode,
+                        pieces: [{ node: textNode, rawStart: trimmedFull.s, rawEnd: trimmedFull.e, preserveWs }],
+                        firstNode: textNode,
+                        lastNode: textNode
                     });
                 }
                 continue;
@@ -9010,7 +9154,7 @@ export default class PdfPlugin extends Plugin {
                 while (pos < len) {
                     const chCode = raw.charCodeAt(pos);
                     const step = (chCode >= 0xD800 && chCode <= 0xDBFF && pos + 1 < len) ? 2 : 1;
-                    if (!preserveWs && (raw[pos] === '\n' || raw[pos] === '\r')) {
+                    if (raw[pos] === '\n' || raw[pos] === '\r') {
                         pos += step;
                         continue;
                     }
@@ -9061,62 +9205,116 @@ export default class PdfPlugin extends Plugin {
                     }
                 }
 
-                // Measure union bounding box for [pos, lo] on this visual line
-                range.setStart(textNode, pos);
-                range.setEnd(textNode, lo);
-                const lineRects = range.getClientRects();
-                let lMin = Infinity;
-                let tMin = Infinity;
-                let rMax = -Infinity;
-                let bMax = -Infinity;
-                for (let i = 0; i < lineRects.length; i++) {
-                    const r = lineRects[i];
-                    if (r.width <= 0.1 || r.height <= 0.1) continue;
-                    if (Math.abs((r.top + r.height * 0.5) - lineMidY) > lineTol) continue;
-                    if (r.left < lMin) lMin = r.left;
-                    if (r.top < tMin) tMin = r.top;
-                    if (r.right > rMax) rMax = r.right;
-                    if (r.bottom > bMax) bMax = r.bottom;
-                }
+                // Trim leading/trailing whitespace on this visual line BEFORE measuring so indented
+                // code lines and wrapped prose align exactly with their first and last visible glyph.
+                const trimmedLine = trimWhitespaceOffsets(raw, pos, lo);
+                if (trimmedLine.e > trimmedLine.s) {
+                    range.setStart(textNode, trimmedLine.s);
+                    range.setEnd(textNode, trimmedLine.e);
+                    const lineRects = range.getClientRects();
+                    let lMin = Infinity;
+                    let tMin = Infinity;
+                    let rMax = -Infinity;
+                    let bMax = -Infinity;
+                    for (let i = 0; i < lineRects.length; i++) {
+                        const r = lineRects[i];
+                        if (r.width <= 0.1 || r.height <= 0.1) continue;
+                        if (Math.abs((r.top + r.height * 0.5) - lineMidY) > lineTol) continue;
+                        if (r.left < lMin) lMin = r.left;
+                        if (r.top < tMin) tMin = r.top;
+                        if (r.right > rMax) rMax = r.right;
+                        if (r.bottom > bMax) bMax = r.bottom;
+                    }
 
-                const sliceRaw = raw.slice(pos, lo);
-                const sliceNorm = preserveWs ? sliceRaw.replace(/[\r\n]+/g, '') : sliceRaw.replace(/[\r\n\t ]+/g, ' ');
-                if (sliceNorm.trim().length > 0 && rMax > lMin) {
-                    rawSpans.push({
-                        text: sliceNorm,
-                        xPx: lMin - pageRect.left,
-                        topPx: tMin - pageRect.top,
-                        widthPx: rMax - lMin,
-                        heightPx: Math.max(1, bMax - tMin),
-                        fontSizePx,
-                        dir: spanDir
-                    });
+                    const sliceRaw = raw.slice(trimmedLine.s, trimmedLine.e);
+                    const sliceNorm = preserveWs ? sliceRaw.replace(/[\r\n]+/g, '') : sliceRaw.replace(/[\r\n\t ]+/g, ' ');
+                    if (sliceNorm.trim().length > 0 && rMax > lMin) {
+                        rawSpans.push({
+                            text: sliceNorm,
+                            xPx: lMin - pageRect.left,
+                            topPx: tMin - pageRect.top,
+                            widthPx: rMax - lMin,
+                            heightPx: Math.max(1, bMax - tMin),
+                            fontSizePx,
+                            dir: getLineDir(trimmedLine.s),
+                            blockRoot,
+                            isCode,
+                            pieces: [{ node: textNode, rawStart: trimmedLine.s, rawEnd: trimmedLine.e, preserveWs }],
+                            firstNode: textNode,
+                            lastNode: textNode
+                        });
+                    }
                 }
 
                 pos = lo > pos ? lo : pos + 1;
             }
         }
 
-        if (rawSpans.length <= 1) return rawSpans;
+        const hasInlineObstacleBetween = (prevNode: Text, currNode: Text, scope: HTMLElement): boolean => {
+            if (prevNode === currNode) return false;
+            let cur: Node | null = prevNode;
+            let steps = 0;
+            while (cur && steps < 48) {
+                steps++;
+                // Move to next node in document order without descending into prevNode
+                let next: Node | null = null;
+                if (cur !== prevNode && cur.firstChild) {
+                    next = cur.firstChild;
+                } else {
+                    let anc: Node | null = cur;
+                    while (anc && anc !== scope && !anc.nextSibling) {
+                        anc = anc.parentNode;
+                    }
+                    if (!anc || anc === scope) return false;
+                    next = anc.nextSibling;
+                }
+                if (!next) return false;
+                if (next === currNode) return false;
+                if (next.nodeType === Node.ELEMENT_NODE) {
+                    const el = next as HTMLElement;
+                    if (el.matches(OBSTACLE_SELECTOR)) {
+                        const cs = getStyle(el);
+                        if (cs.display !== 'none' && cs.visibility !== 'hidden') {
+                            return true;
+                        }
+                    }
+                }
+                cur = next;
+            }
+            return false;
+        };
 
         // Merge consecutive inline spans on the same visual line (e.g. bold/italic/links inside a sentence)
-        // while keeping distant columns (like separate table cells) as distinct positioned spans.
-        const merged: CachedPdfTextSpan[] = [];
+        // while keeping distant columns (table cells), inline formulas/icons, and differently-sized code/sub/sup
+        // chips strictly separate so every selection box sits dead-on over its rendered glyphs.
+        const mergedWorking: WorkingSpan[] = [];
         for (let i = 0; i < rawSpans.length; i++) {
             const curr = rawSpans[i];
-            if (merged.length === 0) {
-                merged.push({ ...curr });
+            if (mergedWorking.length === 0) {
+                mergedWorking.push({ ...curr, pieces: [...curr.pieces] });
                 continue;
             }
-            const prev = merged[merged.length - 1];
+            const prev = mergedWorking[mergedWorking.length - 1];
             const prevMidY = prev.topPx + prev.heightPx * 0.5;
             const currMidY = curr.topPx + curr.heightPx * 0.5;
             const sameLine = Math.abs(currMidY - prevMidY) <= Math.max(3, Math.min(prev.heightPx, curr.heightPx) * 0.45);
             const gapX = curr.xPx - (prev.xPx + prev.widthPx);
             const maxInlineGap = Math.max(prev.fontSizePx, curr.fontSizePx) * 0.85;
-            const similarSize = Math.abs(curr.fontSizePx - prev.fontSizePx) <= Math.max(prev.fontSizePx, curr.fontSizePx) * 0.25;
+            const sameBlock = prev.blockRoot === curr.blockRoot;
+            const sameDir = prev.dir === curr.dir;
+            const similarSize = Math.abs(curr.fontSizePx - prev.fontSizePx) <= Math.max(prev.fontSizePx, curr.fontSizePx) * 0.08;
+            const compatibleCode = prev.isCode === curr.isCode || gapX <= 2;
 
-            if (sameLine && gapX >= -4 && gapX <= maxInlineGap && similarSize) {
+            if (
+                sameLine &&
+                sameBlock &&
+                sameDir &&
+                similarSize &&
+                compatibleCode &&
+                gapX >= -4 &&
+                gapX <= maxInlineGap &&
+                !hasInlineObstacleBetween(prev.lastNode, curr.firstNode, prev.blockRoot || pageWrapper)
+            ) {
                 const needsSpace =
                     gapX > prev.fontSizePx * 0.15 &&
                     !prev.text.endsWith(' ') &&
@@ -9128,12 +9326,178 @@ export default class PdfPlugin extends Plugin {
                 prev.topPx = Math.min(prev.topPx, curr.topPx);
                 prev.widthPx = newRight - prev.xPx;
                 prev.heightPx = newBottom - prev.topPx;
+                const appendedPieces = curr.pieces.map((p, idx) => (idx === 0 && needsSpace ? { ...p, needsSpaceBefore: true } : p));
+                prev.pieces.push(...appendedPieces);
+                prev.lastNode = curr.lastNode;
             } else {
-                merged.push({ ...curr });
+                mergedWorking.push({ ...curr, pieces: [...curr.pieces] });
             }
         }
 
-        return merged;
+        // For mixed LTR+RTL lines, measure exact visual DOM rects for each logical BiDi run directly
+        // from the live Range API so every LTR & RTL selection box lands sub-pixel over its exact glyphs.
+        const measureBidiRunRects = (
+            span: WorkingSpan
+        ): Array<{ xPx: number; widthPx: number }> | undefined => {
+            if (!this.hasRtlChars(span.text)) return undefined;
+            const cleaned = this.cleanTextForPdfLayer(span.text);
+            if (!cleaned) return undefined;
+            const { runs } = this.splitBidiRunsForPdf(cleaned, span.dir);
+            if (runs.length <= 1) return undefined;
+
+            // Build per-UTF16-index mapping from cleaned text back to DOM Text node offsets
+            const charToDom: Array<{ node: Text; start: number; end: number } | null> = [];
+            let builtStr = '';
+            for (let pIdx = 0; pIdx < span.pieces.length; pIdx++) {
+                const piece = span.pieces[pIdx];
+                const rawStr = piece.node.data;
+                if (piece.needsSpaceBefore) {
+                    builtStr += ' ';
+                    charToDom.push(null);
+                }
+                let idx = piece.rawStart;
+                while (idx < piece.rawEnd) {
+                    const ch = rawStr[idx];
+                    if (piece.preserveWs && (ch === '\r' || ch === '\n')) {
+                        idx++;
+                        continue;
+                    }
+                    if (!piece.preserveWs && (ch === '\r' || ch === '\n' || ch === '\t' || ch === ' ')) {
+                        const wsStart = idx;
+                        while (idx < piece.rawEnd && (rawStr[idx] === '\r' || rawStr[idx] === '\n' || rawStr[idx] === '\t' || rawStr[idx] === ' ')) {
+                            idx++;
+                        }
+                        builtStr += ' ';
+                        charToDom.push({ node: piece.node, start: wsStart, end: idx });
+                        continue;
+                    }
+                    const code = rawStr.charCodeAt(idx);
+                    if (code === 0x200B || code === 0xFEFF || code <= 0x08 || code === 0x0B || code === 0x0C || (code >= 0x0E && code <= 0x1F) || code === 0x7F) {
+                        idx++;
+                        continue;
+                    }
+                    builtStr += ch;
+                    charToDom.push({ node: piece.node, start: idx, end: idx + 1 });
+                    idx++;
+                }
+            }
+
+            // Trim leading/trailing spaces to mirror cleanTextForPdfLayer().trim()
+            let trimS = 0;
+            let trimE = builtStr.length;
+            while (trimS < trimE && /\s/.test(builtStr[trimS])) trimS++;
+            while (trimE > trimS && /\s/.test(builtStr[trimE - 1])) trimE--;
+            const mappedClean = builtStr.slice(trimS, trimE);
+            if (mappedClean.length !== cleaned.length) return undefined;
+            const domMap = charToDom.slice(trimS, trimE);
+
+            const spanMidY = pageRect.top + span.topPx + span.heightPx * 0.5;
+            const spanTol = Math.max(4, span.heightPx * 0.6);
+
+            const measureRangeForIndices = (sIdx: number, eIdx: number): { xPx: number; widthPx: number } | null => {
+                let rMinL = Infinity;
+                let rMaxR = -Infinity;
+                let curNode: Text | null = null;
+                let segMin = 0;
+                let segMax = 0;
+
+                const flushSeg = () => {
+                    if (!curNode || segMax <= segMin) return;
+                    range.setStart(curNode, segMin);
+                    range.setEnd(curNode, segMax);
+                    const rects = range.getClientRects();
+                    for (let k = 0; k < rects.length; k++) {
+                        const r = rects[k];
+                        if (r.width <= 0.1 || r.height <= 0.1) continue;
+                        if (Math.abs((r.top + r.height * 0.5) - spanMidY) > spanTol) continue;
+                        if (r.left < rMinL) rMinL = r.left;
+                        if (r.right > rMaxR) rMaxR = r.right;
+                    }
+                };
+
+                for (let idx = sIdx; idx < eIdx; idx++) {
+                    const entry = domMap[idx];
+                    if (!entry) continue;
+                    if (entry.node === curNode && entry.start === segMax) {
+                        segMax = entry.end;
+                    } else {
+                        flushSeg();
+                        curNode = entry.node;
+                        segMin = entry.start;
+                        segMax = entry.end;
+                    }
+                }
+                flushSeg();
+                if (!isFinite(rMinL) || rMaxR <= rMinL) return null;
+                return { xPx: rMinL - pageRect.left, widthPx: rMaxR - rMinL };
+            };
+
+            const checkNoLargeOverlap = (boxes: Array<{ xPx: number; widthPx: number }>): boolean => {
+                const sorted = [...boxes].sort((a, b) => a.xPx - b.xPx);
+                for (let k = 1; k < sorted.length; k++) {
+                    const prevRight = sorted[k - 1].xPx + sorted[k - 1].widthPx;
+                    if (prevRight - sorted[k].xPx > 3.5) return false;
+                }
+                return true;
+            };
+
+            const fullBoxes: Array<{ xPx: number; widthPx: number }> = [];
+            let allValid = true;
+            for (let rIdx = 0; rIdx < runs.length; rIdx++) {
+                const b = measureRangeForIndices(runs[rIdx].start, runs[rIdx].end);
+                if (!b) {
+                    allValid = false;
+                    break;
+                }
+                fullBoxes.push(b);
+            }
+            if (allValid && checkNoLargeOverlap(fullBoxes)) {
+                return fullBoxes;
+            }
+
+            // Retry with boundary spaces trimmed in case a BiDi boundary space bridged visually across runs
+            const trimmedBoxes: Array<{ xPx: number; widthPx: number }> = [];
+            let allTrimValid = true;
+            for (let rIdx = 0; rIdx < runs.length; rIdx++) {
+                let s = runs[rIdx].start;
+                let e = runs[rIdx].end;
+                while (s < e && cleaned[s] === ' ') s++;
+                while (e > s && cleaned[e - 1] === ' ') e--;
+                const b = e > s
+                    ? measureRangeForIndices(s, e)
+                    : measureRangeForIndices(runs[rIdx].start, runs[rIdx].end);
+                if (!b) {
+                    allTrimValid = false;
+                    break;
+                }
+                trimmedBoxes.push(b);
+            }
+            if (allTrimValid && checkNoLargeOverlap(trimmedBoxes)) {
+                return trimmedBoxes;
+            }
+            return undefined;
+        };
+
+        const finalSpans: CachedPdfTextSpan[] = [];
+        for (let i = 0; i < mergedWorking.length; i++) {
+            const ws = mergedWorking[i];
+            const bidiRunRects = measureBidiRunRects(ws);
+            const outSpan: CachedPdfTextSpan = {
+                text: ws.text,
+                xPx: ws.xPx,
+                topPx: ws.topPx,
+                widthPx: ws.widthPx,
+                heightPx: ws.heightPx,
+                fontSizePx: ws.fontSizePx,
+                dir: ws.dir
+            };
+            if (bidiRunRects) {
+                outSpan.bidiRunRects = bidiRunRects;
+            }
+            finalSpans.push(outSpan);
+        }
+
+        return finalSpans;
     }
 
     /**
@@ -9230,17 +9594,30 @@ export default class PdfPlugin extends Plugin {
                         const encodedRuns = runs.map((r) => encodeRunToHex(r.visualText, preserveBoundarySpaces));
                         const totalEm = encodedRuns.reduce((acc, er) => acc + Math.max(0.1, er.widthEm), 0);
 
-                        // Compute left-to-right visual X placement for each run
+                        // Compute exact left-to-right visual X placement for each run:
+                        // prefer live DOM Range rects captured in extractPageTextSpans, falling back to
+                        // glyph-width proportioning only if auto-link defusal or cache lacked exact rects.
                         const runXMm = new Array<number>(runs.length).fill(xMm);
                         const runWidthMm = new Array<number>(runs.length).fill(targetWidthMm);
-                        let cursorXPx = span.xPx;
-                        for (let v = 0; v < visualOrder.length; v++) {
-                            const rIdx = visualOrder[v];
-                            const share = totalEm > 0 ? Math.max(0.1, encodedRuns[rIdx].widthEm) / totalEm : 1 / runs.length;
-                            const wPx = span.widthPx * share;
-                            runXMm[rIdx] = Math.max(0, Math.min(pageWidth - 1, margin + cursorXPx * mmPerPx));
-                            runWidthMm[rIdx] = wPx * mmPerPx;
-                            cursorXPx += wPx;
+                        const hasExactRunRects =
+                            Array.isArray(span.bidiRunRects) &&
+                            span.bidiRunRects.length === runs.length &&
+                            span.bidiRunRects.every((b) => b && b.widthPx > 0.1);
+                        if (hasExactRunRects && span.bidiRunRects) {
+                            for (let rIdx = 0; rIdx < runs.length; rIdx++) {
+                                runXMm[rIdx] = Math.max(0, Math.min(pageWidth - 1, margin + span.bidiRunRects[rIdx].xPx * mmPerPx));
+                                runWidthMm[rIdx] = span.bidiRunRects[rIdx].widthPx * mmPerPx;
+                            }
+                        } else {
+                            let cursorXPx = span.xPx;
+                            for (let v = 0; v < visualOrder.length; v++) {
+                                const rIdx = visualOrder[v];
+                                const share = totalEm > 0 ? Math.max(0.1, encodedRuns[rIdx].widthEm) / totalEm : 1 / runs.length;
+                                const wPx = span.widthPx * share;
+                                runXMm[rIdx] = Math.max(0, Math.min(pageWidth - 1, margin + cursorXPx * mmPerPx));
+                                runWidthMm[rIdx] = wPx * mmPerPx;
+                                cursorXPx += wPx;
+                            }
                         }
 
                         // Emit runs in logical stream order so one drag-select & copy yields exact logical text.
@@ -9257,7 +9634,7 @@ export default class PdfPlugin extends Plugin {
                                 : fontSizePt;
                             const naturalWidthMm = er.widthEm * (runFontSizePt / ptPerMm);
                             const hScalePercent = naturalWidthMm > 0.2 && runWidthMm[rIdx] > 0.2
-                                ? Math.max(50, Math.min(200, (runWidthMm[rIdx] / naturalWidthMm) * 100))
+                                ? Math.max(25, Math.min(400, (runWidthMm[rIdx] / naturalWidthMm) * 100))
                                 : 100;
                             const xPt = docInternal.getCoordinateString(runXMm[rIdx]);
                             try {
@@ -9275,7 +9652,7 @@ export default class PdfPlugin extends Plugin {
                         if (hexCids.length > 0) {
                             const naturalWidthMm = totalWidthEm * (fontSizePt / ptPerMm);
                             const hScalePercent = naturalWidthMm > 0.2 && targetWidthMm > 0.2
-                                ? Math.max(50, Math.min(200, (targetWidthMm / naturalWidthMm) * 100))
+                                ? Math.max(25, Math.min(400, (targetWidthMm / naturalWidthMm) * 100))
                                 : 100;
                             const xPt = docInternal.getCoordinateString(xMm);
                             const yPt = docInternal.getVerticalCoordinateString(yBaselineMm);
@@ -9308,7 +9685,7 @@ export default class PdfPlugin extends Plugin {
 
             const naturalWidthMm = doc.getTextWidth(encoded);
             const hScale = naturalWidthMm > 0.2 && targetWidthMm > 0.2
-                ? Math.max(0.5, Math.min(2.0, targetWidthMm / naturalWidthMm))
+                ? Math.max(0.25, Math.min(4.0, targetWidthMm / naturalWidthMm))
                 : 1;
 
             try {
