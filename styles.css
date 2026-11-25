@@ -383,6 +383,36 @@ body .pdf-export-root.pdf-export-root .media-slider-next {
     display: none;
 }
 
+/* Restore visibility of all carousel bottom indicator pills/dashes (obsidian-image-layouts'
+   global `.image-layouts button { background-color: unset; }` overrides inactive pill colors). */
+body .pdf-export-root.pdf-export-root .image-layouts button[aria-current="false"] {
+    background-color: var(--background-modifier-border, #9ca3af);
+}
+
+body .pdf-export-root.pdf-export-root .image-layouts button[aria-current="true"] {
+    background-color: var(--text-muted, #4b5563);
+}
+
+body .pdf-export-root.pdf-export-root.pdf-mode-dark .image-layouts button[aria-current="false"],
+body .pdf-export-root.pdf-export-root.pdf-theme-dark .image-layouts button[aria-current="false"] {
+    background-color: rgba(255, 255, 255, 0.34);
+}
+
+body .pdf-export-root.pdf-export-root.pdf-mode-dark .image-layouts button[aria-current="true"],
+body .pdf-export-root.pdf-export-root.pdf-theme-dark .image-layouts button[aria-current="true"] {
+    background-color: rgba(255, 255, 255, 0.85);
+}
+
+body .pdf-export-root.pdf-export-root.pdf-mode-light .image-layouts button[aria-current="false"],
+body .pdf-export-root.pdf-export-root.pdf-theme-light .image-layouts button[aria-current="false"] {
+    background-color: rgba(0, 0, 0, 0.22);
+}
+
+body .pdf-export-root.pdf-export-root.pdf-mode-light .image-layouts button[aria-current="true"],
+body .pdf-export-root.pdf-export-root.pdf-theme-light .image-layouts button[aria-current="true"] {
+    background-color: rgba(0, 0, 0, 0.65);
+}
+
 body .pdf-export-root.pdf-export-root pre,
 body .pdf-export-root.pdf-export-root code {
     white-space: pre-wrap;
