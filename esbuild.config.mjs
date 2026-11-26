@@ -14,6 +14,32 @@ if you want to view the source, please visit the github repository of this plugi
 
 const prod = (process.argv[2] === "production");
 
+/**
+ * Strips jsPDF's unused legacy `pdfobjectnewwindow` output branch, which contains
+ * `document.createElement("script")` and a cdnjs.cloudflare.com URL.
+ * This plugin only uses `doc.output("arraybuffer")`, so removing that dead branch
+ * eliminates runtime script-element creation from main.js without affecting behavior.
+ */
+const stripJsPdfScriptInjectionPlugin = {
+	name: "strip-jspdf-script-injection",
+	setup(build) {
+		build.onLoad({ filter: /[\\/]jspdf[\\/].*\.js$/ }, async (args) => {
+			const source = await fs.promises.readFile(args.path, "utf8");
+			if (!source.includes("pdfobjectnewwindow")) {
+				return null;
+			}
+			const patched = source.replace(
+				/case\s*["']pdfobjectnewwindow["']\s*:[\s\S]*?(?=case\s*["']pdfjsnewwindow["']\s*:)/,
+				'case"pdfobjectnewwindow":throw new Error("pdfobjectnewwindow is disabled.");'
+			);
+			return {
+				contents: patched,
+				loader: "js",
+			};
+		});
+	},
+};
+
 const context = await esbuild.context({
 	banner: {
 		js: banner,
@@ -23,6 +49,7 @@ const context = await esbuild.context({
 	},
 	entryPoints: ["./main.ts"],
 	bundle: true,
+	plugins: [stripJsPdfScriptInjectionPlugin],
 	external: [
 		"obsidian",
 		"electron",
@@ -59,6 +86,11 @@ const context = await esbuild.context({
 
 if (prod) {
 	await context.rebuild();
+	const built = fs.readFileSync("main.js", "utf8");
+	if (/createElement\s*\(\s*["']script["']\s*\)/.test(built)) {
+		console.error("Build verification failed: main.js still contains createElement('script').");
+		process.exit(1);
+	}
 	process.exit(0);
 } else {
 	await context.watch();
