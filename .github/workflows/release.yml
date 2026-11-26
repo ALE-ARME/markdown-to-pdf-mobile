@@ -1,0 +1,67 @@
+name: Release Obsidian Plugin
+
+on:
+  push:
+    tags:
+      - "*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check TypeScript
+        run: npx tsc main.ts --noEmit --skipLibCheck --target es2018 --module esnext --moduleResolution node --lib dom,es2018,dom.iterable
+
+      - name: Build production bundle
+        run: npm run build
+
+      - name: Resolve release tag and verify manifest version
+        id: meta
+        run: |
+          MANIFEST_VERSION=$(node -p "require('./manifest.json').version")
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            TAG="${{ github.ref_name }}"
+            CLEAN_TAG="${TAG#v}"
+            if [ "$CLEAN_TAG" != "$MANIFEST_VERSION" ]; then
+              echo "Tag ($TAG) does not match manifest.json version ($MANIFEST_VERSION)."
+              exit 1
+            fi
+          else
+            TAG="$MANIFEST_VERSION"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$MANIFEST_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Verify release artifacts exist
+        run: |
+          test -s main.js
+          test -s manifest.json
+          test -s styles.css
+
+      - name: Create or update GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: ${{ steps.meta.outputs.tag }}
+          generate_release_notes: true
+          files: |
+            main.js
+            manifest.json
+            styles.css
