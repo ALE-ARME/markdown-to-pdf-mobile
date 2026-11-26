@@ -8,6 +8,8 @@ on:
 
 permissions:
   contents: write
+  id-token: write
+  attestations: write
 
 jobs:
   build-and-release:
@@ -54,6 +56,14 @@ jobs:
           test -s main.js
           test -s manifest.json
           test -s styles.css
+
+      - name: Generate artifact attestations
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            main.js
+            manifest.json
+            styles.css
 
       - name: Create or update GitHub Release
         uses: softprops/action-gh-release@v2
