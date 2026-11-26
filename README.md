@@ -56,6 +56,15 @@ Because PDF generation runs locally via Reading Mode and canvas capture, please 
   - **Live Preview vs. Reading Mode:** The exporter always renders in **Reading Mode**, not **Live Preview**. Syntax or plugin decorations that only appear in Live Preview (CodeMirror) will not appear in Reading Mode or in the exported PDF.
   - **Minor Visual Differences:** Certain advanced CSS effects (such as complex masks, filters, or non-standard browser form controls) may render slightly differently in the generated PDF compared to Obsidian's live screen view.
 
+## Privacy & Network Usage
+
+PDF generation runs **100% locally on your device**. This plugin collects **no telemetry, analytics, or personal data**, and never contacts any external backend or third-party server of its own.
+
+If an automated plugin scanner or directory listing flags network API calls (`requestUrl`, `XMLHttpRequest`, or `fetch`) inside the bundled `main.js`, they exist solely for the following reasons:
+- **Local WebView Assets (`XMLHttpRequest`):** Used exclusively on local origins (`localhost`, `app://`, `capacitor://`, `blob:`) to read bundled Obsidian/Capacitor resources—such as MathJax `.woff2` math fonts and local vault assets—so they can be embedded cleanly during offline PDF rendering.
+- **User-Referenced Remote Media (`requestUrl`):** Called via Obsidian's built-in `requestUrl` API **only** if a note you export explicitly embeds external `http://` or `https://` images, CSS background URLs, or web fonts that need to be drawn into the PDF. When exporting notes with purely local content, **zero outbound internet requests** are made.
+- **Bundled Libraries (`html2canvas` & `jsPDF`):** The remaining static occurrences of `XMLHttpRequest` / `fetch` reported in `main.js` come from the standard internal image/resource loaders inside `html2canvas` and `jsPDF` bundled into the plugin.
+
 ## Performance & Optimizations
 
 To keep single-note previews, long multi-page documents, and recursive folder exports fast and stable on both desktop PCs and mobile devices—without changing export fidelity—the plugin uses several optimizations:
