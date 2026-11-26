@@ -4863,6 +4863,170 @@ export default class PdfPlugin extends Plugin {
     }
 
     /**
+     * Inspects actual rendered pixels around a proposed multi-page canvas cut line.
+     * If the cut would slice through content (text, diagram box fill/borders, arrowheads, or cards),
+     * scans upward within the allowed backtrack window and snaps the cut cleanly into the midpoint
+     * of the nearest pure-blank gap or inter-box vertical arrow shaft.
+     */
+    private refineSliceHeightOnCanvas(
+        pageCanvas: HTMLCanvasElement,
+        offsetPx: number,
+        currentSliceH: number,
+        minSlicePx: number,
+        bgRgb: number[],
+        captureScale: number
+    ): number {
+        const proposedCutY = offsetPx + currentSliceH;
+        const minCutY = offsetPx + minSlicePx;
+        const W = pageCanvas.width;
+        const H = pageCanvas.height;
+        if (W <= 0 || H <= 0 || proposedCutY <= minCutY || proposedCutY >= H) {
+            return currentSliceH;
+        }
+
+        const pCtx = pageCanvas.getContext('2d');
+        if (!pCtx) return currentSliceH;
+
+        const scale = Math.max(1, captureScale);
+        const maxLookbackPx = Math.min(proposedCutY - minCutY, Math.round(320 * scale));
+        if (maxLookbackPx < Math.round(8 * scale)) return currentSliceH;
+
+        const padCheckPx = Math.max(2, Math.round(3 * scale));
+        const bandTop = Math.max(minCutY, proposedCutY - maxLookbackPx);
+        const bandBot = Math.min(H - 1, proposedCutY + padCheckPx);
+        const bandH = bandBot - bandTop + 1;
+        if (bandH <= 2) return currentSliceH;
+
+        let data: Uint8ClampedArray;
+        try {
+            data = pCtx.getImageData(0, bandTop, W, bandH).data;
+        } catch {
+            return currentSliceH;
+        }
+
+        const bgR = bgRgb[0];
+        const bgG = bgRgb[1];
+        const bgB = bgRgb[2];
+        const xStep = Math.max(1, Math.floor(scale));
+        const widthCss = W / scale;
+        const maxMultiInkCss = Math.max(16, widthCss * 0.03);
+
+        // Classify every row in [bandTop..bandBot]:
+        // 0 = pure blank background
+        // 1 = single narrow vertical connector (e.g. flowchart arrow shaft; impossible inside a box)
+        // 2 = multiple narrow vertical connectors (parallel flowchart arrows)
+        // 3 = content (box fill, horizontal borders, text, arrowheads, photos)
+        const rowClass = new Uint8Array(bandH);
+        const rowStride = W * 4;
+        for (let i = 0; i < bandH; i++) {
+            const rowBase = i * rowStride;
+            let inkSamples = 0;
+            let runs = 0;
+            let maxRunSamples = 0;
+            let curRunSamples = 0;
+            for (let x = 0; x < W; x += xStep) {
+                const o = rowBase + x * 4;
+                const isInk =
+                    Math.abs(data[o] - bgR) >= 6 ||
+                    Math.abs(data[o + 1] - bgG) >= 6 ||
+                    Math.abs(data[o + 2] - bgB) >= 6;
+                if (isInk) {
+                    inkSamples++;
+                    if (curRunSamples === 0) runs++;
+                    curRunSamples++;
+                    if (curRunSamples > maxRunSamples) maxRunSamples = curRunSamples;
+                } else {
+                    curRunSamples = 0;
+                }
+            }
+            if (inkSamples === 0) {
+                rowClass[i] = 0;
+            } else {
+                const maxRunCss = (maxRunSamples * xStep) / scale;
+                const totalInkCss = (inkSamples * xStep) / scale;
+                if (runs === 1 && maxRunCss <= 5.5) {
+                    rowClass[i] = 1;
+                } else if (maxRunCss <= 5.5 && runs <= 6 && totalInkCss <= maxMultiInkCss) {
+                    rowClass[i] = 2;
+                } else {
+                    rowClass[i] = 3;
+                }
+            }
+        }
+
+        const pIdx = Math.min(bandH - 1, Math.max(0, proposedCutY - bandTop));
+        const checkStart = Math.max(0, pIdx - padCheckPx);
+        const checkEnd = Math.min(bandH - 1, pIdx + padCheckPx);
+        let maxClassNearCut = 0;
+        for (let i = checkStart; i <= checkEnd; i++) {
+            if (rowClass[i] > maxClassNearCut) maxClassNearCut = rowClass[i];
+        }
+        // Already sitting cleanly in pure whitespace or a single vertical arrow shaft
+        if (maxClassNearCut <= 1) {
+            return currentSliceH;
+        }
+        // Already sitting cleanly inside a tall multi-arrow gap (not inside a hollow box's narrow padding)
+        if (maxClassNearCut === 2) {
+            let up = pIdx;
+            while (up > 0 && rowClass[up - 1] <= 2) up--;
+            let dn = pIdx;
+            while (dn < bandH - 1 && rowClass[dn + 1] <= 2) dn++;
+            if (dn - up + 1 >= Math.round(14 * scale)) {
+                return currentSliceH;
+            }
+        }
+
+        // Helper: find the lowest (closest to proposedCutY) contiguous band above pIdx
+        // where every row has rowClass <= maxCls and height >= minBandH.
+        const findLowestBandMidY = (maxCls: number, minBandH: number): number | null => {
+            let runEnd = -1;
+            for (let i = pIdx; i >= 0; i--) {
+                if (rowClass[i] <= maxCls) {
+                    if (runEnd === -1) runEnd = i;
+                } else {
+                    if (runEnd !== -1) {
+                        const runStart = i + 1;
+                        if (runEnd - runStart + 1 >= minBandH) {
+                            return bandTop + Math.floor((runStart + runEnd) / 2);
+                        }
+                        runEnd = -1;
+                    }
+                }
+            }
+            if (runEnd !== -1 && runEnd + 1 >= minBandH) {
+                return bandTop + Math.floor(runEnd / 2);
+            }
+            return null;
+        };
+
+        const bestBlankCutY = findLowestBandMidY(0, Math.max(3, Math.round(3 * scale)));
+        const bestSingleConnCutY = findLowestBandMidY(1, Math.max(6, Math.round(8 * scale)));
+        const bestMultiConnCutY = findLowestBandMidY(2, Math.max(10, Math.round(14 * scale)));
+
+        let chosenCutY: number | null = null;
+        if (bestBlankCutY !== null && bestSingleConnCutY !== null) {
+            // Prefer pure blank when near the connector gap; otherwise keep the closer arrow gap
+            // so we don't jump far up past several intact flowchart boxes.
+            chosenCutY = bestBlankCutY >= bestSingleConnCutY - Math.round(24 * scale)
+                ? bestBlankCutY
+                : bestSingleConnCutY;
+        } else {
+            chosenCutY = bestBlankCutY ?? bestSingleConnCutY;
+        }
+
+        if (bestMultiConnCutY !== null) {
+            if (chosenCutY === null || bestMultiConnCutY > chosenCutY + Math.round(110 * scale)) {
+                chosenCutY = bestMultiConnCutY;
+            }
+        }
+
+        if (chosenCutY !== null && chosenCutY >= minCutY && chosenCutY < proposedCutY) {
+            return chosenCutY - offsetPx;
+        }
+        return currentSliceH;
+    }
+
+    /**
      * Ensures a canvas has an opaque 2D context (alpha: false) so Chromium encodes a 24-bit RGB PNG
      * (colorType=2), letting jsPDF embed the compressed IDAT stream directly (~100x faster than RGBA PNG).
      */
@@ -12603,27 +12767,39 @@ export default class PdfPlugin extends Plugin {
                             currentSliceH = remainingPx;
                         } else {
                             currentSliceH = Math.min(sliceHeightPx, remainingPx);
-                            if (offsetPx + currentSliceH < pageCanvas.height && unbreakableRanges.length > 0) {
-                                const sliceTopCss = offsetPx / captureScale;
-                                for (let pass = 0; pass < 4; pass++) {
-                                    const proposedBotCss = (offsetPx + currentSliceH) / captureScale;
-                                    let earliestStraddleTop: number | null = null;
-                                    for (let u = 0; u < unbreakableRanges.length; u++) {
-                                        const r = unbreakableRanges[u];
-                                        if (r.topCssPx >= proposedBotCss) break;
-                                        if (r.topCssPx > sliceTopCss + 4 && r.bottomCssPx > proposedBotCss) {
-                                            earliestStraddleTop = r.topCssPx;
-                                            break;
+                            if (offsetPx + currentSliceH < pageCanvas.height) {
+                                if (unbreakableRanges.length > 0) {
+                                    const sliceTopCss = offsetPx / captureScale;
+                                    for (let pass = 0; pass < 16; pass++) {
+                                        const proposedBotCss = (offsetPx + currentSliceH) / captureScale;
+                                        let bestAdjustedH: number | null = null;
+                                        for (let u = 0; u < unbreakableRanges.length; u++) {
+                                            const r = unbreakableRanges[u];
+                                            if (r.topCssPx >= proposedBotCss) break;
+                                            if (r.topCssPx > sliceTopCss + 4 && r.bottomCssPx > proposedBotCss) {
+                                                const candidateH = Math.floor((r.topCssPx - 3) * captureScale) - offsetPx;
+                                                if (candidateH >= minSlicePx && candidateH < currentSliceH) {
+                                                    bestAdjustedH = candidateH;
+                                                    break;
+                                                }
+                                            }
                                         }
-                                    }
-                                    if (earliestStraddleTop === null) break;
-                                    const adjustedH = Math.floor((earliestStraddleTop - 3) * captureScale) - offsetPx;
-                                    if (adjustedH >= minSlicePx && adjustedH < currentSliceH) {
-                                        currentSliceH = adjustedH;
-                                    } else {
-                                        break;
+                                        if (bestAdjustedH === null) break;
+                                        currentSliceH = bestAdjustedH;
                                     }
                                 }
+                                // Pixel-exact verification & refinement on the rendered canvas:
+                                // rescues any diagram box (Mermaid/SVG/PNG/Canvas) or text line whose
+                                // rendered pixels straddle the proposed cut line, snapping cleanly into
+                                // the nearest blank gap or inter-box vertical arrow shaft above.
+                                currentSliceH = this.refineSliceHeightOnCanvas(
+                                    pageCanvas,
+                                    offsetPx,
+                                    currentSliceH,
+                                    minSlicePx,
+                                    bgColor,
+                                    captureScale
+                                );
                             }
                         }
 
@@ -12953,11 +13129,11 @@ export default class PdfPlugin extends Plugin {
                         });
                     }
                 }
-                // Also protect individual Mermaid/SVG diagram node boxes and arrow labels (including
-                // their outer strokes/borders) when slicing tall diagrams across pages.
+                // Also protect individual Mermaid/SVG diagram node boxes, foreignObject labels,
+                // text nodes, and arrow labels when slicing tall diagrams across pages.
                 const maxSvgNodeH = Math.min(260, maxAtomicH);
-                const svgNodeEls = pageWrapper.querySelectorAll<SVGGElement>(
-                    'svg g.node, svg g.actor, svg g.cluster-label, svg g.statediagram-state, svg g.edgeLabel'
+                const svgNodeEls = pageWrapper.querySelectorAll<Element>(
+                    'svg g.node, svg g[class*="node"], svg g.actor, svg g.cluster-label, svg g.statediagram-state, svg g.classGroup, svg g[id^="entity-"], svg g.edgeLabel, svg foreignObject, svg text'
                 );
                 for (let sIdx = 0; sIdx < svgNodeEls.length; sIdx++) {
                     const nodeEl = svgNodeEls[sIdx];
@@ -12967,6 +13143,16 @@ export default class PdfPlugin extends Plugin {
                         unbreakableRanges.push({
                             topCssPx: Math.max(0, nr.top - wrapperTop - 3),
                             bottomCssPx: Math.max(0, nr.bottom - wrapperTop + 4)
+                        });
+                    }
+                }
+                // Protect individual rendered text lines so multi-page slices never bisect text horizontally
+                for (let tIdx = 0; tIdx < textSpans.length; tIdx++) {
+                    const sp = textSpans[tIdx];
+                    if (sp.heightPx > 2 && sp.heightPx <= 120) {
+                        unbreakableRanges.push({
+                            topCssPx: Math.max(0, sp.topPx - 2),
+                            bottomCssPx: Math.max(0, sp.topPx + sp.heightPx + 2)
                         });
                     }
                 }
