@@ -3471,6 +3471,13 @@ export default class PdfPlugin extends Plugin {
             cb.replaceWith(box);
         }
 
+        // 2b. Replace MathJax CHTML <mjx-sqrt> stitched glyph + CSS border-top bar with a single
+        // continuous TeX-style vector <svg> radical so the diagonal and vinculum align seamlessly.
+        const clonedSqrts = Array.from(clonedEl.querySelectorAll<HTMLElement>('mjx-sqrt'));
+        for (const sq of clonedSqrts) {
+            this.applyVectorRadicalToClonedSqrt(sq, sq, clonedWin, clonedDoc, colorCache);
+        }
+
         // 3. Sanitize only newly injected nodes in the cloned tree (e.g. :before / :after clones created by DocumentCloner)
         this.sanitizePageForHtml2Canvas(clonedEl, clonedWin, colorCache, fontCache, true);
 
@@ -3592,6 +3599,216 @@ export default class PdfPlugin extends Plugin {
         }
         box.setAttribute('data-pdf-san', '1');
         return box;
+    }
+
+    /**
+     * Replaces MathJax 3 CHTML's stitched <mjx-surd> font glyph + <mjx-box> CSS border-top
+     * with a single seamless TeX/Computer-Modern-style continuous vector <svg> radical path.
+     * Preserves exact layout boxes so radicand placement and PDF text-layer coordinates never shift.
+     */
+    private applyVectorRadicalToClonedSqrt(
+        srcSqrt: HTMLElement,
+        clonedSqrt: HTMLElement,
+        win: Window,
+        targetDoc: Document,
+        colorCache: Map<string, string>
+    ): void {
+        // Direct-child guard so nested roots (\sqrt{1 + \sqrt{x}}) each get their own vector radical
+        const existingChildren = Array.from(clonedSqrt.children);
+        if (existingChildren.some(ch => ch.classList?.contains('pdf-vector-sqrt-svg'))) return;
+
+        const findDirectChildByTag = (parent: HTMLElement, tagUpper: string): HTMLElement | null => {
+            const kids = parent.children;
+            for (let i = 0; i < kids.length; i++) {
+                if (kids[i].tagName.toUpperCase() === tagUpper) {
+                    return kids[i] as HTMLElement;
+                }
+            }
+            return null;
+        };
+
+        const srcSurd = findDirectChildByTag(srcSqrt, 'MJX-SURD');
+        const srcBox = findDirectChildByTag(srcSqrt, 'MJX-BOX');
+        const clonedSurd = findDirectChildByTag(clonedSqrt, 'MJX-SURD');
+        const clonedBox = findDirectChildByTag(clonedSqrt, 'MJX-BOX');
+        if (!srcSurd || !srcBox || !clonedSurd || !clonedBox) return;
+
+        const sqrtRect = srcSqrt.getBoundingClientRect();
+        const surdRect = srcSurd.getBoundingClientRect();
+        const boxRect = srcBox.getBoundingClientRect();
+        if (sqrtRect.width < 2 || sqrtRect.height < 2 || surdRect.width < 1 || boxRect.width < 1) return;
+        // Skip unexpected RTL or reversed layouts
+        if (boxRect.left < surdRect.left - 0.5) return;
+
+        const sqrtCs = win.getComputedStyle(srcSqrt);
+        const surdCs = win.getComputedStyle(srcSurd);
+        const boxCs = win.getComputedStyle(srcBox);
+
+        // Convert screen rects back into local CSS pixels if any ancestor applies CSS transform scaling
+        const scaleX = srcSqrt.offsetWidth > 0 ? sqrtRect.width / srcSqrt.offsetWidth : 1;
+        const scaleY = srcSqrt.offsetHeight > 0 ? sqrtRect.height / srcSqrt.offsetHeight : 1;
+        const invX = scaleX > 0.05 && Math.abs(scaleX - 1) > 0.02 ? 1 / scaleX : 1;
+        const invY = scaleY > 0.05 && Math.abs(scaleY - 1) > 0.02 ? 1 / scaleY : 1;
+
+        const borderLeft = parseFloat(sqrtCs.borderLeftWidth) || 0;
+        const borderTop = parseFloat(sqrtCs.borderTopWidth) || 0;
+
+        const sqrtW = sqrtRect.width * invX;
+        const sqrtH = sqrtRect.height * invY;
+        const surdLeft = (surdRect.left - sqrtRect.left) * invX - borderLeft;
+        const surdRight = (surdRect.right - sqrtRect.left) * invX - borderLeft;
+        const surdBottom = (surdRect.bottom - sqrtRect.top) * invY - borderTop;
+        const boxLeft = (boxRect.left - sqrtRect.left) * invX - borderLeft;
+        const boxRight = (boxRect.right - sqrtRect.left) * invX - borderLeft;
+        const boxTop = (boxRect.top - sqrtRect.top) * invY - borderTop;
+        const boxBottom = (boxRect.bottom - sqrtRect.top) * invY - borderTop;
+
+        const fontSize = parseFloat(boxCs.fontSize) || parseFloat(sqrtCs.fontSize) || 14;
+        const boxPadLeft = parseFloat(boxCs.paddingLeft) || 0;
+        const boxPadTop = parseFloat(boxCs.paddingTop) || 0;
+        const boxBorderTop = parseFloat(boxCs.borderTopWidth) || 0;
+
+        // Rule thickness matching MathJax's fraction bar and vinculum stroke weight
+        const tBar = Math.max(0.68, Math.min(fontSize * 0.085, boxBorderTop > 0 ? boxBorderTop : fontSize * 0.065));
+
+        // Give tight radicands with superscripts (e.g. b^2 - 4ac) crisp breathing room under the bar
+        const desiredClearance = Math.max(1.2, fontSize * 0.17);
+        const lift = boxPadTop < desiredClearance
+            ? Math.min(fontSize * 0.11, desiredClearance - boxPadTop)
+            : 0;
+
+        const x0 = surdLeft;
+        const radicandLeft = boxLeft + boxPadLeft;
+        const xj = Math.max(x0 + 4, Math.min(radicandLeft, Math.max(boxLeft, surdRight)));
+        const xEnd = Math.max(xj + 1, boxRight);
+        const yTop = boxTop - lift;
+        const yBot = Math.max(yTop + Math.max(6, tBar * 4), Math.max(boxBottom, surdBottom));
+
+        const W = Math.max(4, xj - x0);
+        const H = Math.max(6, yBot - yTop);
+        const tDiag = tBar * 0.94;
+        const tDown = tBar * 1.62;
+        const tSpur = tBar * 0.78;
+
+        // Classic Computer Modern / TeX radical geometry:
+        // hook stays compact near the lower half on tall radicals (\sqrt{\frac{a}{b}})
+        const hookSpan = Math.min(H * 0.45, W * 0.72);
+        const yHookPeak = yBot - hookSpan;
+        const xHookPeak = x0 + W * 0.27;
+        const xSpur = x0 + W * 0.04;
+        const ySpur = yHookPeak + Math.min(hookSpan * 0.24, W * 0.17);
+        const xBotTip = x0 + W * 0.48;
+
+        // Rising diagonal upstroke: right edge from (xj, yTop + tBar) down-left to (xBotTip, yBot)
+        const dxR = Math.max(0.5, xj - xBotTip);
+        const dyR = Math.max(1, yBot - (yTop + tBar));
+        const lenR = Math.hypot(dxR, dyR);
+        const wDiag = tDiag * (lenR / dyR);
+        const mUp = dxR / dyR;
+        // Exact top-left miter vertex where rising diagonal joins horizontal vinculum bar
+        const xTopCorner = xj + mUp * tBar - wDiag;
+        const xBotLeftDiag = xBotTip - wDiag;
+
+        // Calligraphic thick downward stroke from hook peak down-right to bottom tip
+        const dxD = Math.max(0.5, xBotTip - xHookPeak);
+        const dyD = Math.max(1, yBot - yHookPeak);
+        const lenD = Math.hypot(dxD, dyD);
+        const wDown = Math.min(tDown * (lenD / dyD), W * 0.19);
+        const xBotOuter = Math.max(xHookPeak + 0.2, xBotTip - wDiag * 0.62);
+        const xHookOuter = xHookPeak - wDown;
+        const mDown = (xBotOuter - xHookOuter) / Math.max(1, yBot - yHookPeak);
+
+        // Exact inner V valley intersection between inner downstroke and inner rising diagonal
+        let yValley = (xBotLeftDiag + mUp * yBot - xHookPeak + mDown * yHookPeak) / (mDown + mUp);
+        yValley = Math.max(yHookPeak + tBar * 1.1, Math.min(yBot - tBar * 1.05, yValley));
+        const xValley = xBotLeftDiag + mUp * (yBot - yValley);
+
+        // Left upward spur tick meeting the outer edge of the thick downstroke
+        const dxS = Math.max(0.5, xHookPeak - xSpur);
+        const dyS = Math.max(0.2, ySpur - yHookPeak);
+        const lenS = Math.hypot(dxS, dyS);
+        const nxS = (dyS / lenS) * tSpur;
+        const nyS = (dxS / lenS) * tSpur;
+        const mSpur = -dyS / dxS;
+        const xSb = xSpur + nxS;
+        const ySb = ySpur + nyS;
+        const denomS = 1 - mSpur * mDown;
+        let yHookLeft = Math.abs(denomS) > 0.05
+            ? (ySb + mSpur * (xHookOuter - xSb - mDown * yHookPeak)) / denomS
+            : yHookPeak + tSpur * 1.2;
+        yHookLeft = Math.max(yHookPeak + tSpur * 0.4, Math.min(yBot - tBar, yHookLeft));
+        const xHookLeft = Math.max(
+            xSpur + (xHookPeak - xSpur) * 0.28,
+            xHookOuter + mDown * (yHookLeft - yHookPeak)
+        );
+
+        // Resolve ink color safely (handles oklch/oklab/color-mix for html2canvas & foreignObject)
+        let inkColor = surdCs.color || boxCs.borderTopColor || sqrtCs.color || '#000000';
+        if (PdfPlugin.UNSUPPORTED_COLOR_REGEX.test(inkColor)) {
+            let resolved = colorCache.get(inkColor);
+            if (resolved === undefined) {
+                resolved = this.resolveCssColorToRgba(inkColor) || '#000000';
+                colorCache.set(inkColor, resolved);
+            }
+            inkColor = resolved;
+        }
+
+        // Pad SVG viewBox so no vertex ever clips outside [0, svgW] x [0, svgH] in html2canvas or Blink
+        const pad = Math.ceil(Math.max(2, lift + 1.5));
+        const svgMinX = Math.min(0, x0, xTopCorner) - pad;
+        const svgMinY = Math.min(0, yTop) - pad;
+        const svgMaxX = Math.max(sqrtW, xEnd) + pad;
+        const svgMaxY = Math.max(sqrtH, yBot) + pad;
+        const svgW = Math.max(4, svgMaxX - svgMinX);
+        const svgH = Math.max(4, svgMaxY - svgMinY);
+
+        const fx = (x: number) => (x - svgMinX).toFixed(2);
+        const fy = (y: number) => (y - svgMinY).toFixed(2);
+        const pathData =
+            `M${fx(xTopCorner)} ${fy(yTop)}` +
+            ` L${fx(xEnd)} ${fy(yTop)}` +
+            ` L${fx(xEnd)} ${fy(yTop + tBar)}` +
+            ` L${fx(xj)} ${fy(yTop + tBar)}` +
+            ` L${fx(xBotTip)} ${fy(yBot)}` +
+            ` L${fx(xBotOuter)} ${fy(yBot)}` +
+            ` L${fx(xHookLeft)} ${fy(yHookLeft)}` +
+            ` L${fx(xSb)} ${fy(ySb)}` +
+            ` L${fx(xSpur)} ${fy(ySpur)}` +
+            ` L${fx(xHookPeak)} ${fy(yHookPeak)}` +
+            ` L${fx(xValley)} ${fy(yValley)} Z`;
+
+        // Hide original stitched surd glyph and box border-top without altering box metrics
+        clonedSurd.style.setProperty('opacity', '0', 'important');
+        clonedSurd.style.setProperty('visibility', 'hidden', 'important');
+        clonedBox.style.setProperty('border-top-color', 'transparent', 'important');
+
+        const currentPos = clonedSqrt.style.position || sqrtCs.position;
+        if (!currentPos || currentPos === 'static') {
+            clonedSqrt.style.position = 'relative';
+        }
+        clonedSqrt.style.overflow = 'visible';
+
+        const svgNS = 'http://www.w3.org/2000/svg';
+        const svg = targetDoc.createElementNS(svgNS, 'svg');
+        svg.setAttribute('xmlns', svgNS);
+        svg.setAttribute('viewBox', `0 0 ${svgW.toFixed(2)} ${svgH.toFixed(2)}`);
+        svg.setAttribute('width', `${svgW.toFixed(2)}`);
+        svg.setAttribute('height', `${svgH.toFixed(2)}`);
+        svg.setAttribute('aria-hidden', 'true');
+        svg.classList.add('pdf-vector-sqrt-svg');
+        svg.setAttribute('data-pdf-san', '1');
+        svg.setAttribute(
+            'style',
+            `position:absolute;left:${svgMinX.toFixed(2)}px;top:${svgMinY.toFixed(2)}px;width:${svgW.toFixed(2)}px;height:${svgH.toFixed(2)}px;overflow:visible;pointer-events:none;display:block;`
+        );
+
+        const path = targetDoc.createElementNS(svgNS, 'path');
+        path.setAttribute('d', pathData);
+        path.setAttribute('fill', inkColor);
+        path.setAttribute('stroke', 'none');
+        svg.appendChild(path);
+
+        clonedSqrt.appendChild(svg);
     }
 
     private static readonly FO_INHERITED_PROPS: readonly string[] = [
@@ -4447,6 +4664,12 @@ export default class PdfPlugin extends Plugin {
             const afterCs = window.getComputedStyle(htmlEl, '::after');
             const afterNode = this.buildPseudoElementNode(afterCs, cs, usedFontFamilies, tagUpper, flags.externalBgUrls);
             if (afterNode) cloned.appendChild(afterNode);
+
+            // Replace MathJax CHTML <mjx-sqrt> stitched glyph + CSS border-top with a single seamless
+            // continuous TeX-style vector <svg> radical so diagonal and horizontal bar align perfectly.
+            if (tagUpper === 'MJX-SQRT') {
+                this.applyVectorRadicalToClonedSqrt(htmlEl, cloned, window, activeDocument, colorCache);
+            }
 
             return cloned;
         };
