@@ -2095,48 +2095,17 @@ export default class PdfPlugin extends Plugin {
             }
         }
 
-        // Wait for all <img> elements to finish loading & decoding (force eager loading for offscreen blocks)
-        const waitForImages = async (imgList: HTMLImageElement[]) => {
-            if (imgList.length === 0) return;
-            await Promise.all(imgList.map(img => {
-                if (img.loading === 'lazy' || img.getAttribute('loading') === 'lazy') {
-                    img.loading = 'eager';
-                    img.removeAttribute('loading');
-                }
-                if (img.complete) {
-                    if (img.naturalWidth > 0 && typeof img.decode === 'function') {
-                        return Promise.race([
-                            img.decode().catch(() => {}),
-                            new Promise<void>(r => window.setTimeout(r, 1500))
-                        ]);
-                    }
-                    return Promise.resolve();
-                }
+        // Wait for all <img> elements to finish loading
+        const imgs = Array.from(container.querySelectorAll('img'));
+        if (imgs.length > 0) {
+            await Promise.all(imgs.map(img => {
+                if (img.complete) return Promise.resolve();
                 return new Promise<void>(resolve => {
-                    const timer = window.setTimeout(resolve, 4000);
-                    const done = () => {
-                        window.clearTimeout(timer);
-                        if (img.naturalWidth > 0 && typeof img.decode === 'function') {
-                            void Promise.race([
-                                img.decode().catch(() => {}),
-                                new Promise<void>(r => window.setTimeout(r, 1000))
-                            ]).then(() => resolve());
-                        } else {
-                            resolve();
-                        }
-                    };
-                    img.addEventListener('load', done, { once: true });
-                    img.addEventListener('error', done, { once: true });
+                    const timer = window.setTimeout(resolve, 2500);
+                    img.addEventListener('load', () => { window.clearTimeout(timer); resolve(); }, { once: true });
+                    img.addEventListener('error', () => { window.clearTimeout(timer); resolve(); }, { once: true });
                 });
             }));
-        };
-
-        const firstImgs = Array.from(container.querySelectorAll<HTMLImageElement>('img'));
-        await waitForImages(firstImgs);
-        // Re-check once in case an async plugin component (e.g. carousel/gallery) mounted new <img> nodes
-        const afterImgs = Array.from(container.querySelectorAll<HTMLImageElement>('img')).filter(img => !firstImgs.includes(img));
-        if (afterImgs.length > 0) {
-            await waitForImages(afterImgs);
         }
     }
 
@@ -2161,181 +2130,43 @@ export default class PdfPlugin extends Plugin {
             // ignore malformed URI sequence
         }
 
-        // Fallback: scan vault files by exact NFC-normalized path, basename, or whitespace-normalized basename
+        // Fallback: scan vault files by exact path or basename
         const allFiles = this.app.vault.getFiles();
         for (const cand of candidates) {
-            const normalized = cand.replace(/\\/g, '/').replace(/^(?:\.\/|\/)+/, '').normalize('NFC').toLowerCase();
+            const normalized = cand.replace(/^\/+/, '').toLowerCase();
             const base = normalized.split('/').pop() || normalized;
-            const byPath = allFiles.find(f => f.path.replace(/\\/g, '/').normalize('NFC').toLowerCase() === normalized);
+            const byPath = allFiles.find(f => f.path.toLowerCase() === normalized);
             if (byPath) return byPath;
-            const byName = allFiles.find(f => f.name.normalize('NFC').toLowerCase() === base);
+            const byName = allFiles.find(f => f.name.toLowerCase() === base);
             if (byName) return byName;
-            const collapsedBase = base.replace(/\s+/g, ' ').trim();
-            if (collapsedBase) {
-                const byCollapsed = allFiles.find(f => f.name.normalize('NFC').toLowerCase().replace(/\s+/g, ' ').trim() === collapsedBase);
-                if (byCollapsed) return byCollapsed;
-            }
         }
         return null;
     }
 
-    private resolveVaultFileFromImgSrc(src: string, sourcePath?: string): TFile | null {
-        if (!src || src.startsWith('data:') || src.startsWith('blob:')) return null;
-
-        let resourcePrefix = '';
+    private resolveVaultFileFromImgSrc(src: string): TFile | null {
+        if (!src || src.startsWith('data:') || src.startsWith('blob:') || src.startsWith('http://') || src.startsWith('https://')) {
+            // Also allow capacitor/localhost vault URLs on mobile
+            if (!src.includes('_capacitor_file_') && !src.includes('localhost')) return null;
+        }
+        const noQuery = src.split('#')[0].split('?')[0];
+        let decoded = noQuery;
         try {
-            const rawPrefix = this.app.vault.adapter.getResourcePath('');
-            if (rawPrefix) {
-                resourcePrefix = rawPrefix.split('?')[0].split('#')[0];
-            }
+            decoded = decodeURIComponent(noQuery);
         } catch {
             // ignore
         }
-
-        const isHttp = src.startsWith('http://') || src.startsWith('https://');
-        if (isHttp) {
-            const isLocalObsidianUrl =
-                src.includes('_capacitor_file_') ||
-                src.includes('localhost') ||
-                src.includes('127.0.0.1') ||
-                src.includes('appassets.androidplatform.net') ||
-                (resourcePrefix.length > 0 && src.startsWith(resourcePrefix));
-            if (!isLocalObsidianUrl) return null;
-        }
-
-        const safeDecodeOnce = (raw: string): string => {
-            try {
-                return decodeURIComponent(raw);
-            } catch {
-                // Tolerate literal '%' characters inside filenames while still decoding valid %XX sequences
-                return raw.replace(/(?:%[0-9A-Fa-f]{2})+/g, (seq) => {
-                    try {
-                        return decodeURIComponent(seq);
-                    } catch {
-                        return seq;
-                    }
-                });
-            }
-        };
-
-        const withoutQuery = src.split('?')[0];
-        const rawVariants = [withoutQuery];
-        const hashIdx = withoutQuery.indexOf('#');
-        if (hashIdx > 0) {
-            rawVariants.push(withoutQuery.slice(0, hashIdx));
-        }
-
-        const normalizedCandidates = new Set<string>();
-        const addCandidate = (val: string) => {
-            if (!val) return;
-            const norm = val.replace(/\\/g, '/').normalize('NFC').toLowerCase();
-            normalizedCandidates.add(norm);
-            if (resourcePrefix) {
-                const normPref = resourcePrefix.replace(/\\/g, '/').normalize('NFC').toLowerCase();
-                if (norm.startsWith(normPref)) {
-                    const stripped = norm.slice(normPref.length).replace(/^\/+/, '');
-                    if (stripped) normalizedCandidates.add(stripped);
-                }
-            }
-        };
-
-        for (const variant of rawVariants) {
-            addCandidate(variant);
-            const dec1 = safeDecodeOnce(variant);
-            addCandidate(dec1);
-            const dec2 = safeDecodeOnce(dec1);
-            if (dec2 !== dec1) addCandidate(dec2);
-        }
-
+        const lower = decoded.replace(/\\/g, '/').toLowerCase();
         const allFiles = this.app.vault.getFiles();
         let bestMatch: TFile | null = null;
         for (const f of allFiles) {
-            const p = f.path.replace(/\\/g, '/').normalize('NFC').toLowerCase();
-            for (const cand of normalizedCandidates) {
-                if (cand === p || cand.endsWith('/' + p)) {
-                    if (!bestMatch || p.length > bestMatch.path.length) {
-                        bestMatch = f;
-                    }
-                    break;
+            const p = f.path.toLowerCase();
+            if (lower === p || lower.endsWith('/' + p)) {
+                if (!bestMatch || p.length > bestMatch.path.length) {
+                    bestMatch = f;
                 }
             }
         }
-        if (bestMatch) return bestMatch;
-
-        // Basename fallback (handles mobile scoped-storage / symlink / vault root path differences)
-        const baseCandidates = new Set<string>();
-        for (const cand of normalizedCandidates) {
-            const base = cand.split('/').pop()?.trim();
-            if (base && base.includes('.')) baseCandidates.add(base);
-        }
-        if (baseCandidates.size > 0) {
-            const sourceDir = sourcePath ? sourcePath.slice(0, Math.max(0, sourcePath.lastIndexOf('/'))).normalize('NFC').toLowerCase() : '';
-            const matchingFiles = allFiles.filter(f => baseCandidates.has(f.name.normalize('NFC').toLowerCase()));
-            if (matchingFiles.length === 1) return matchingFiles[0];
-            if (matchingFiles.length > 1 && sourceDir) {
-                const sameDir = matchingFiles.find(f => f.path.normalize('NFC').toLowerCase().startsWith(sourceDir + '/'));
-                if (sameDir) return sameDir;
-            }
-            if (matchingFiles.length > 0) return matchingFiles[0];
-        }
-        return null;
-    }
-
-    /**
-     * Infers an accurate image MIME type from binary magic bytes first, then HTTP Content-Type or URL extension.
-     * Prevents misnamed image files (e.g. WebP/JPEG/SVG saved as .png) or `application/octet-stream` responses
-     * from failing image decode on Android WebView.
-     */
-    private sniffImageMimeType(buffer: ArrayBuffer, rawContentType: string, url: string): string {
-        const bytes = new Uint8Array(buffer, 0, Math.min(buffer.byteLength, 64));
-        if (bytes.length >= 4) {
-            if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47) return 'image/png';
-            if (bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF) return 'image/jpeg';
-            if (bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x38) return 'image/gif';
-            if (bytes[0] === 0x42 && bytes[1] === 0x4D) return 'image/bmp';
-            if (bytes[0] === 0x00 && bytes[1] === 0x00 && bytes[2] === 0x01 && bytes[3] === 0x00) return 'image/x-icon';
-            if (
-                bytes.length >= 12 &&
-                bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 &&
-                bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50
-            ) {
-                return 'image/webp';
-            }
-            if (
-                bytes.length >= 12 &&
-                bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70 &&
-                bytes[8] === 0x61 && bytes[9] === 0x76 && bytes[10] === 0x69
-            ) {
-                return 'image/avif';
-            }
-            const headText = String.fromCharCode(...bytes).trimStart().toLowerCase();
-            if (headText.startsWith('<svg') || (headText.startsWith('<?xml') && headText.includes('<svg'))) {
-                return 'image/svg+xml';
-            }
-        }
-
-        const cleanCt = (rawContentType || '').split(';')[0].trim().toLowerCase();
-        if (cleanCt.startsWith('image/')) return cleanCt;
-
-        const extMatch = (url || '').split('?')[0].split('#')[0].match(/\.([a-z0-9]+)$/i);
-        if (extMatch) {
-            const ext = extMatch[1].toLowerCase();
-            const extMap: Record<string, string> = {
-                png: 'image/png',
-                jpg: 'image/jpeg',
-                jpeg: 'image/jpeg',
-                webp: 'image/webp',
-                gif: 'image/gif',
-                svg: 'image/svg+xml',
-                bmp: 'image/bmp',
-                avif: 'image/avif',
-                ico: 'image/x-icon',
-                tif: 'image/tiff',
-                tiff: 'image/tiff'
-            };
-            if (extMap[ext]) return extMap[ext];
-        }
-        return 'image/png';
+        return bestMatch;
     }
 
     /**
@@ -2360,9 +2191,7 @@ export default class PdfPlugin extends Plugin {
                     parsed.origin === window.location.origin ||
                     host === 'localhost' ||
                     host === '127.0.0.1' ||
-                    host === '[::1]' ||
-                    host === 'appassets.androidplatform.net' ||
-                    url.includes('_capacitor_file_');
+                    host === '[::1]';
             } catch {
                 isLocalWebViewOrigin = false;
             }
@@ -2420,46 +2249,20 @@ export default class PdfPlugin extends Plugin {
         if (source.kind === 'domImg') {
             const domImg = source.img;
             imgEl = domImg;
-            if (domImg.loading === 'lazy' || domImg.getAttribute('loading') === 'lazy') {
-                domImg.loading = 'eager';
-                domImg.removeAttribute('loading');
-            }
             if (!domImg.complete) {
                 await new Promise<void>(resolve => {
-                    const timer = window.setTimeout(resolve, 8000);
+                    const timer = window.setTimeout(resolve, 3000);
                     domImg.addEventListener('load', () => { window.clearTimeout(timer); resolve(); }, { once: true });
                     domImg.addEventListener('error', () => { window.clearTimeout(timer); resolve(); }, { once: true });
                 });
             }
         } else {
-            const isCrossOriginHttp = (() => {
-                if (source.kind !== 'url') return false;
-                if (!source.url.startsWith('http://') && !source.url.startsWith('https://')) return false;
-                if (source.url.includes('_capacitor_file_')) return false;
-                try {
-                    const parsed = new URL(source.url, window.location.href);
-                    const host = parsed.hostname.toLowerCase();
-                    if (
-                        parsed.origin === window.location.origin ||
-                        host === 'localhost' ||
-                        host === '127.0.0.1' ||
-                        host === '[::1]' ||
-                        host === 'appassets.androidplatform.net'
-                    ) {
-                        return false;
-                    }
-                    return true;
-                } catch {
-                    return false;
-                }
-            })();
-
             imgEl = await new Promise<HTMLImageElement | null>((resolve) => {
                 const tempImg = new Image();
-                if (isCrossOriginHttp) {
+                if (source.kind === 'url' && !source.url.startsWith('data:') && !source.url.startsWith('blob:')) {
                     tempImg.crossOrigin = 'anonymous';
                 }
-                const timer = window.setTimeout(() => resolve(null), 10000);
+                const timer = window.setTimeout(() => resolve(null), 5000);
                 tempImg.onload = () => { window.clearTimeout(timer); resolve(tempImg); };
                 tempImg.onerror = () => { window.clearTimeout(timer); resolve(null); };
                 tempImg.src = source.url;
@@ -2486,24 +2289,10 @@ export default class PdfPlugin extends Plugin {
         const isSvg = (source.kind === 'dataUrl' && !!source.isSvg) ||
             imgSrcLower.startsWith('data:image/svg+xml') ||
             /\.svg(?:[?#]|$)/.test(imgSrcLower);
-        let targetW = isSvg
+        const targetW = isSvg
             ? Math.min(2400, Math.max(64, maxBackingWidthPx))
             : Math.max(1, Math.min(natW, maxBackingWidthPx));
-        let targetH = Math.max(1, Math.round((targetW * natH) / natW));
-
-        // Clamp both axes and total pixel count so tall/high-res PNGs never exceed mobile WebView GPU limits
-        const maxCanvasDim = 3072;
-        const maxCanvasPixels = 8_000_000;
-        if (targetW > maxCanvasDim || targetH > maxCanvasDim) {
-            const dimScale = maxCanvasDim / Math.max(targetW, targetH);
-            targetW = Math.max(1, Math.round(targetW * dimScale));
-            targetH = Math.max(1, Math.round(targetH * dimScale));
-        }
-        if (targetW * targetH > maxCanvasPixels) {
-            const pxScale = Math.sqrt(maxCanvasPixels / (targetW * targetH));
-            targetW = Math.max(1, Math.round(targetW * pxScale));
-            targetH = Math.max(1, Math.round(targetH * pxScale));
-        }
+        const targetH = Math.max(1, Math.round((targetW * natH) / natW));
 
         const canvas = createEl('canvas');
         canvas.width = targetW;
@@ -3042,64 +2831,67 @@ export default class PdfPlugin extends Plugin {
             tiff: 'image/tiff'
         };
 
-        const rasterizeBinary = async (binary: ArrayBuffer, rawMime: string, targetWidthHint: number) => {
-            if (!binary || binary.byteLength === 0) return null;
-            const mime = this.sniffImageMimeType(binary, rawMime, '');
-            const isSvg = mime === 'image/svg+xml';
-            const backingW = Math.max(64, Math.round(targetWidthHint * 2));
+        const optimizeCanvasWithWebP = async (
+            loaded: { canvas: HTMLCanvasElement; natW: number; natH: number },
+            origByteLength: number,
+            mime: string
+        ): Promise<{ canvas: HTMLCanvasElement; natW: number; natH: number }> => {
+            if (!this.settings.optimizeImages) return loaded;
+            // Skip images that are already WebP or vector SVGs
+            if (mime === 'image/webp' || mime === 'image/svg+xml') return loaded;
+            if (typeof loaded.canvas.toBlob !== 'function') return loaded;
+            try {
+                const webpBlob = await new Promise<Blob | null>((resolve) => {
+                    try {
+                        loaded.canvas.toBlob((b) => resolve(b), 'image/webp', 0.99);
+                    } catch {
+                        resolve(null);
+                    }
+                });
+                if (!webpBlob || webpBlob.type !== 'image/webp' || webpBlob.size <= 0) {
+                    return loaded;
+                }
+                // Only keep WebP conversion if it is actually smaller than the original image
+                if (origByteLength > 0 && webpBlob.size >= origByteLength) {
+                    return loaded;
+                }
+                if (typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function') {
+                    const blobUrl = URL.createObjectURL(webpBlob);
+                    try {
+                        const decoded = await this.loadSourceToCanvas(
+                            { kind: 'dataUrl', url: blobUrl, isSvg: false },
+                            loaded.canvas.width
+                        );
+                        if (decoded) {
+                            loaded.canvas.width = 0;
+                            loaded.canvas.height = 0;
+                            return { canvas: decoded.canvas, natW: loaded.natW, natH: loaded.natH };
+                        }
+                    } finally {
+                        try { URL.revokeObjectURL(blobUrl); } catch { /* ignore */ }
+                    }
+                }
+            } catch {
+                // Keep original rasterized canvas if WebP encoding/decoding is unavailable
+            }
+            return loaded;
+        };
 
-            // Path 1: Zero-copy Blob URL decode (fast & low RAM for raster images)
+        const rasterizeBinary = async (binary: ArrayBuffer, mime: string, targetWidthHint: number) => {
+            const isSvg = mime === 'image/svg+xml';
+            const backingW = Math.round(targetWidthHint * 2);
+
+            // Use zero-copy Blob URL for raster images (much faster & lower RAM than base64 strings)
             if (!isSvg && typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function') {
                 const blobUrl = URL.createObjectURL(new Blob([binary], { type: mime }));
                 try {
                     const result = await this.loadSourceToCanvas({ kind: 'dataUrl', url: blobUrl, isSvg: false }, backingW);
-                    if (result) return result;
+                    if (result) return await optimizeCanvasWithWebP(result, binary.byteLength, mime);
                 } finally {
                     try { URL.revokeObjectURL(blobUrl); } catch { /* ignore */ }
                 }
             }
 
-            // Path 2: Direct native createImageBitmap decode (bypasses Blob/data-URL size limits on huge PNGs)
-            if (!isSvg && typeof createImageBitmap === 'function') {
-                try {
-                    const bitmap = await createImageBitmap(new Blob([binary], { type: mime }));
-                    try {
-                        const natW = bitmap.width || 0;
-                        const natH = bitmap.height || 0;
-                        if (natW > 0 && natH > 0) {
-                            let targetW = Math.max(1, Math.min(natW, backingW));
-                            let targetH = Math.max(1, Math.round((targetW * natH) / natW));
-                            const maxCanvasDim = 3072;
-                            const maxCanvasPixels = 8_000_000;
-                            if (targetW > maxCanvasDim || targetH > maxCanvasDim) {
-                                const dimScale = maxCanvasDim / Math.max(targetW, targetH);
-                                targetW = Math.max(1, Math.round(targetW * dimScale));
-                                targetH = Math.max(1, Math.round(targetH * dimScale));
-                            }
-                            if (targetW * targetH > maxCanvasPixels) {
-                                const pxScale = Math.sqrt(maxCanvasPixels / (targetW * targetH));
-                                targetW = Math.max(1, Math.round(targetW * pxScale));
-                                targetH = Math.max(1, Math.round(targetH * pxScale));
-                            }
-                            const canvas = createEl('canvas');
-                            canvas.width = targetW;
-                            canvas.height = targetH;
-                            const ctx = canvas.getContext('2d');
-                            if (ctx) {
-                                ctx.drawImage(bitmap, 0, 0, targetW, targetH);
-                                ctx.getImageData(0, 0, 1, 1);
-                                return { canvas, natW, natH };
-                            }
-                        }
-                    } finally {
-                        try { bitmap.close(); } catch { /* ignore */ }
-                    }
-                } catch {
-                    // Fall through to base64 data URL fallback
-                }
-            }
-
-            // Path 3: Inline base64 data URL (required for SVGs and older WebView fallback)
             const dataUrl = `data:${mime};base64,${this.arrayBufferToBase64(binary)}`;
             let svgText: string | undefined;
             if (isSvg) {
@@ -3109,43 +2901,11 @@ export default class PdfPlugin extends Plugin {
                     // ignore
                 }
             }
-            return await this.loadSourceToCanvas(
+            const loaded = await this.loadSourceToCanvas(
                 { kind: 'dataUrl', url: dataUrl, isSvg, svgText },
                 backingW
             );
-        };
-
-        const tryReadHiddenVaultBinaryFromSrc = async (rawUrl: string): Promise<ArrayBuffer | null> => {
-            if (!rawUrl || rawUrl.startsWith('data:') || rawUrl.startsWith('blob:')) return null;
-            try {
-                const rawPrefix = this.app.vault.adapter.getResourcePath('');
-                if (!rawPrefix) return null;
-                const cleanPrefix = rawPrefix.split('?')[0].split('#')[0].replace(/\\/g, '/');
-                const cleanUrl = rawUrl.split('?')[0].split('#')[0].replace(/\\/g, '/');
-                let rel = '';
-                if (cleanUrl.startsWith(cleanPrefix)) {
-                    rel = cleanUrl.slice(cleanPrefix.length);
-                } else {
-                    const decUrl = decodeURIComponent(cleanUrl);
-                    const decPrefix = decodeURIComponent(cleanPrefix);
-                    if (decUrl.startsWith(decPrefix)) {
-                        rel = decUrl.slice(decPrefix.length);
-                    }
-                }
-                rel = rel.replace(/^\/+/, '');
-                if (!rel) return null;
-                const decodedRel = (() => {
-                    try { return decodeURIComponent(rel); } catch { return rel; }
-                })();
-                for (const cand of decodedRel !== rel ? [decodedRel, rel] : [rel]) {
-                    if (await this.app.vault.adapter.exists(cand)) {
-                        return await this.app.vault.adapter.readBinary(cand);
-                    }
-                }
-            } catch {
-                // ignore
-            }
-            return null;
+            return loaded ? await optimizeCanvasWithWebP(loaded, binary.byteLength, mime) : null;
         };
 
         const allEmbeds = Array.from(container.querySelectorAll<HTMLElement>('.internal-embed'));
@@ -3248,10 +3008,9 @@ export default class PdfPlugin extends Plugin {
             let loaded: { canvas: HTMLCanvasElement; natW: number; natH: number } | null = null;
 
             if (imageFile instanceof TFile) {
-                const extMime = mimeMap[imageFile.extension.toLowerCase()] || 'image/png';
+                const mime = mimeMap[imageFile.extension.toLowerCase()] || 'image/png';
                 try {
                     const binary = prefetchedBinaries.get(imageFile.path) || await this.app.vault.readBinary(imageFile);
-                    const mime = this.sniffImageMimeType(binary, extMime, imageFile.path);
                     loaded = await rasterizeBinary(binary, mime, backingWidthHint);
                 } catch (e) {
                     console.warn("Could not read vault image:", imageFile.path, e);
@@ -3268,8 +3027,8 @@ export default class PdfPlugin extends Plugin {
                 const fallbackSrc = img.currentSrc || img.src;
                 const fetched = await this.readUrlAsArrayBuffer(fallbackSrc);
                 if (fetched && fetched.buffer.byteLength > 0) {
-                    const mime = this.sniffImageMimeType(fetched.buffer, fetched.contentType, fallbackSrc);
-                    loaded = await rasterizeBinary(fetched.buffer, mime, backingWidthHint);
+                    const ct = fetched.contentType || 'image/png';
+                    loaded = await rasterizeBinary(fetched.buffer, ct.split(';')[0].trim(), backingWidthHint);
                 }
                 if (!loaded) {
                     loaded = await this.loadSourceToCanvas({ kind: 'url', url: fallbackSrc }, Math.round(backingWidthHint * 2));
@@ -3315,19 +3074,14 @@ export default class PdfPlugin extends Plugin {
         // Convert any remaining non-embed <img> tags (standard markdown images, HTML <img>, plugin layouts, inline icons)
         const remainingImgs = Array.from(container.querySelectorAll<HTMLImageElement>('img'));
         for (const img of remainingImgs) {
-            if (img.loading === 'lazy' || img.getAttribute('loading') === 'lazy') {
-                img.loading = 'eager';
-                img.removeAttribute('loading');
-            }
-            const rawSrcAttr = img.getAttribute('src') || '';
-            const src = img.currentSrc || img.src || rawSrcAttr;
+            const src = img.currentSrc || img.src || '';
             const altAttr = img.getAttribute('alt') || '';
             const cs = window.getComputedStyle(img);
             const rect = img.getBoundingClientRect();
             const isSmallIcon = img.classList.contains('emoji') || (rect.width > 0 && rect.width <= 28 && rect.height > 0 && rect.height <= 28);
 
             const pluginLayoutRoot = img.closest<HTMLElement>(
-                '.block-language-image-layout, .image-layouts, .switchable-layout, .carousel, .carousel-stage, .embla, .embla__slide, .swiper, .splide'
+                '.block-language-image-layout, .image-layouts, .switchable-layout, .carousel'
             );
             const parentEl = img.parentElement;
             const parentDisplay = parentEl ? window.getComputedStyle(parentEl).display : '';
@@ -3352,34 +3106,13 @@ export default class PdfPlugin extends Plugin {
             const dispW = !isNaN(attrW) && attrW > 0 ? attrW : (isSmallIcon && !isNaN(csW) && csW > 0 ? csW : null);
             const dispH = !isNaN(attrH) && attrH > 0 ? attrH : (isSmallIcon && !isNaN(csH) && csH > 0 ? csH : null);
 
-            const measureInnerBox = (boxEl: HTMLElement | null): { w: number; h: number } => {
-                if (!boxEl) return { w: 0, h: 0 };
-                const bRect = boxEl.getBoundingClientRect();
-                const bCs = window.getComputedStyle(boxEl);
-                const padX = (parseFloat(bCs.paddingLeft) || 0) + (parseFloat(bCs.paddingRight) || 0)
-                    + (parseFloat(bCs.borderLeftWidth) || 0) + (parseFloat(bCs.borderRightWidth) || 0);
-                const padY = (parseFloat(bCs.paddingTop) || 0) + (parseFloat(bCs.paddingBottom) || 0)
-                    + (parseFloat(bCs.borderTopWidth) || 0) + (parseFloat(bCs.borderBottomWidth) || 0);
-                return {
-                    w: Math.max(0, bRect.width - padX),
-                    h: Math.max(0, bRect.height - padY)
-                };
-            };
-
-            // If an <img> inside a carousel/layout hasn't finished decoding yet (naturalWidth === 0)
-            // or collapsed to a tiny fallback box, use the enclosing stage/parent dimensions instead.
-            const imgNotYetDecoded = !img.complete || img.naturalWidth === 0;
             let cssBoxW = rect.width;
             let cssBoxH = rect.height;
-            if (isCssSized && (imgNotYetDecoded || cssBoxW <= 1 || cssBoxH <= 1 || (pluginLayoutRoot && (cssBoxW < 32 || cssBoxH < 32)))) {
-                const parentBox = measureInnerBox(parentEl);
-                const stageEl = img.closest<HTMLElement>('.carousel-stage, .embla__slide, .embla__viewport');
-                const stageBox = parentBox.w > 1 && parentBox.h > 1
-                    ? parentBox
-                    : measureInnerBox(stageEl);
-                if (stageBox.w > 1 && stageBox.h > 1) {
-                    cssBoxW = stageBox.w;
-                    cssBoxH = stageBox.h;
+            if (isCssSized && (cssBoxW <= 1 || cssBoxH <= 1) && parentEl) {
+                const pRect = parentEl.getBoundingClientRect();
+                if (pRect.width > 1 && pRect.height > 1) {
+                    cssBoxW = pRect.width;
+                    cssBoxH = pRect.height;
                 }
             }
 
@@ -3391,26 +3124,15 @@ export default class PdfPlugin extends Plugin {
 
             const vaultFile = this.resolveVaultImageFile(altAttr, sourcePath)
                 || this.resolveVaultImageFile(img.getAttribute('data-path') || '', sourcePath)
-                || this.resolveVaultFileFromImgSrc(src, sourcePath)
-                || (rawSrcAttr && rawSrcAttr !== src ? this.resolveVaultFileFromImgSrc(rawSrcAttr, sourcePath) : null)
-                || (rawSrcAttr && !/^(?:https?:|data:|blob:|app:|capacitor:)/i.test(rawSrcAttr) ? this.resolveVaultImageFile(rawSrcAttr, sourcePath) : null);
+                || this.resolveVaultFileFromImgSrc(src);
 
             if (vaultFile instanceof TFile) {
-                const extMime = mimeMap[vaultFile.extension.toLowerCase()] || 'image/png';
+                const mime = mimeMap[vaultFile.extension.toLowerCase()] || 'image/png';
                 try {
                     const bin = await this.app.vault.readBinary(vaultFile);
-                    const mime = this.sniffImageMimeType(bin, extMime, vaultFile.path);
                     loaded = await rasterizeBinary(bin, mime, backingHint);
                 } catch {
                     // ignore
-                }
-            }
-
-            if (!loaded && src) {
-                const hiddenBin = await tryReadHiddenVaultBinaryFromSrc(src);
-                if (hiddenBin && hiddenBin.byteLength > 0) {
-                    const mime = this.sniffImageMimeType(hiddenBin, '', src);
-                    loaded = await rasterizeBinary(hiddenBin, mime, backingHint);
                 }
             }
 
@@ -3419,18 +3141,11 @@ export default class PdfPlugin extends Plugin {
             }
 
             if (!loaded && src) {
-                let fetched = await this.readUrlAsArrayBuffer(src);
-                if ((!fetched || fetched.buffer.byteLength === 0) && src.includes('?')) {
-                    fetched = await this.readUrlAsArrayBuffer(src.split('?')[0]);
-                }
+                const fetched = await this.readUrlAsArrayBuffer(src);
                 if (fetched && fetched.buffer.byteLength > 0) {
-                    const mime = this.sniffImageMimeType(fetched.buffer, fetched.contentType, src);
-                    loaded = await rasterizeBinary(fetched.buffer, mime, backingHint);
+                    const ct = fetched.contentType || 'image/png';
+                    loaded = await rasterizeBinary(fetched.buffer, ct.split(';')[0].trim(), backingHint);
                 }
-            }
-
-            if (!loaded && src) {
-                loaded = await this.loadSourceToCanvas({ kind: 'url', url: src }, Math.round(backingHint * 2));
             }
 
             if (loaded) {
@@ -3441,10 +3156,6 @@ export default class PdfPlugin extends Plugin {
                     ? Math.min(containerRect.right, parentBlock.getBoundingClientRect().right - (parseFloat(window.getComputedStyle(parentBlock).paddingRight) || 0))
                     : containerRect.right;
                 const availW = Math.max(40, Math.floor(parentRight - Math.max(containerRect.left, rect.left)));
-
-                const imgBgColor = cs.backgroundColor;
-                const hasImgBg = Boolean(imgBgColor && imgBgColor !== 'rgba(0, 0, 0, 0)' && imgBgColor !== 'transparent');
-                const imgFilter = cs.filter && cs.filter !== 'none' ? cs.filter : '';
 
                 if (isCssSized && cssBoxW > 1 && cssBoxH > 1) {
                     const slot = createDiv({ cls: 'pdf-image-slot' });
@@ -3460,20 +3171,9 @@ export default class PdfPlugin extends Plugin {
                         slot.setAttribute('data-pdf-border-radius', cs.borderRadius);
                         slot.style.borderRadius = cs.borderRadius;
                     }
-                    if (hasImgBg) slot.setAttribute('data-pdf-bg-color', imgBgColor);
-                    if (imgFilter) slot.setAttribute('data-pdf-filter', imgFilter);
 
                     let finalW = Math.max(1, Math.round(cssBoxW));
                     let finalH = Math.max(1, Math.round(cssBoxH));
-                    if (parentEl && objectFit === 'contain') {
-                        const parentInner = measureInnerBox(parentEl);
-                        if (parentInner.w > 1 && finalW > parentInner.w + 1) {
-                            finalW = Math.max(1, Math.round(parentInner.w));
-                        }
-                        if (parentInner.h > 1 && finalH > parentInner.h + 1) {
-                            finalH = Math.max(1, Math.round(parentInner.h));
-                        }
-                    }
                     if (finalW > availW + 1 && !pluginLayoutRoot) {
                         const ratio = availW / finalW;
                         finalW = availW;
@@ -3498,8 +3198,6 @@ export default class PdfPlugin extends Plugin {
                     img.replaceWith(slot);
                 } else {
                     const slot = this.createImageSlotElement(imgId, loaded.natW, loaded.natH, dispW, dispH, availW, isSmallIcon);
-                    if (hasImgBg) slot.setAttribute('data-pdf-bg-color', imgBgColor);
-                    if (imgFilter) slot.setAttribute('data-pdf-filter', imgFilter);
                     img.replaceWith(slot);
                     if (!isSmallIcon) {
                         const sRect = slot.getBoundingClientRect();
@@ -4623,9 +4321,13 @@ export default class PdfPlugin extends Plugin {
     ): Promise<HTMLCanvasElement | null> {
         if (this.foreignObjectSupported === false) return null;
 
-        // Fast compatibility pre-scan: fall back to html2canvas for pages with iframes
-        // (any un-slotted <img> tags are converted to inline data: URIs below before SVG serialization).
+        // Fast compatibility pre-scan: fall back to html2canvas for pages with iframes or un-slotted external <img>
         if (targetEl.querySelector('iframe')) return null;
+        const imgs = targetEl.querySelectorAll('img');
+        for (let i = 0; i < imgs.length; i++) {
+            const src = imgs[i].getAttribute('src') || '';
+            if (src && !src.startsWith('data:')) return null;
+        }
 
         const rect = targetEl.getBoundingClientRect();
         const rawHeightPx = Math.max(1, Math.ceil(Math.max(rect.height, targetEl.scrollHeight)));
@@ -4715,13 +4417,7 @@ export default class PdfPlugin extends Plugin {
             if (tagUpper === 'LI' && htmlEl.hasAttribute('value')) cloned.setAttribute('value', htmlEl.getAttribute('value') || '');
             if ((tagUpper === 'TD' || tagUpper === 'TH') && htmlEl.hasAttribute('colspan')) cloned.setAttribute('colspan', htmlEl.getAttribute('colspan') || '');
             if ((tagUpper === 'TD' || tagUpper === 'TH') && htmlEl.hasAttribute('rowspan')) cloned.setAttribute('rowspan', htmlEl.getAttribute('rowspan') || '');
-            if (tagUpper === 'IMG' && htmlEl.hasAttribute('src')) {
-                const imgSrc = (htmlEl as HTMLImageElement).currentSrc || htmlEl.getAttribute('src') || '';
-                cloned.setAttribute('src', imgSrc);
-                if (imgSrc && !imgSrc.startsWith('data:')) {
-                    flags.externalBgUrls.add(imgSrc);
-                }
-            }
+            if (tagUpper === 'IMG' && htmlEl.hasAttribute('src')) cloned.setAttribute('src', htmlEl.getAttribute('src') || '');
             if (htmlEl.hasAttribute('dir')) cloned.setAttribute('dir', htmlEl.getAttribute('dir') || '');
             if (htmlEl.hasAttribute('lang')) cloned.setAttribute('lang', htmlEl.getAttribute('lang') || '');
 
@@ -4789,41 +4485,6 @@ export default class PdfPlugin extends Plugin {
             const styledEls = clonedRoot.querySelectorAll('[style*="url("]');
             for (let i = 0; i < styledEls.length; i++) {
                 rewriteStyleUrls(styledEls[i]);
-            }
-            // Also rewrite any raw non-data <img> tags that survived image slotting into inline data: URIs,
-            // because browsers block all external/local URLs inside SVG <foreignObject> images.
-            const rawImgs = clonedRoot.querySelectorAll('img[src]');
-            for (let i = 0; i < rawImgs.length; i++) {
-                const rawSrc = rawImgs[i].getAttribute('src') || '';
-                if (!rawSrc || rawSrc.startsWith('data:')) continue;
-                let dataUrl = urlMap.get(rawSrc) || '';
-                if (!dataUrl || dataUrl.startsWith('data:font/')) {
-                    const vf = this.resolveVaultFileFromImgSrc(rawSrc);
-                    if (vf instanceof TFile) {
-                        try {
-                            const bin = await this.app.vault.readBinary(vf);
-                            if (bin.byteLength > 0 && bin.byteLength <= 18_000_000) {
-                                const mime = this.sniffImageMimeType(bin, '', vf.path);
-                                dataUrl = `data:${mime};base64,${this.arrayBufferToBase64(bin)}`;
-                            }
-                        } catch {
-                            // ignore
-                        }
-                    }
-                }
-                if (!dataUrl || dataUrl.startsWith('data:font/')) {
-                    const fetched = await this.readUrlAsArrayBuffer(rawSrc);
-                    if (fetched && fetched.buffer.byteLength > 0 && fetched.buffer.byteLength <= 18_000_000) {
-                        const mime = this.sniffImageMimeType(fetched.buffer, fetched.contentType, rawSrc);
-                        dataUrl = `data:${mime};base64,${this.arrayBufferToBase64(fetched.buffer)}`;
-                    }
-                }
-                if (dataUrl && !dataUrl.startsWith('data:font/')) {
-                    rawImgs[i].setAttribute('src', dataUrl);
-                } else {
-                    // Fall back to html2canvas for this page instead of silently painting a blank image
-                    return null;
-                }
             }
         }
 
@@ -5123,9 +4784,7 @@ export default class PdfPlugin extends Plugin {
                 ? Math.min(parsedRadiusPx * scale, dw / 2, dh / 2)
                 : 0;
 
-            const slotBgColor = slot.getAttribute('data-pdf-bg-color') || '';
-            const slotFilter = slot.getAttribute('data-pdf-filter') || '';
-            const needsSave = hasAncestorClip || cornerRadius > 0 || objectFit === 'none' || objectFit === 'scale-down' || Boolean(slotFilter);
+            const needsSave = hasAncestorClip || cornerRadius > 0 || objectFit === 'none' || objectFit === 'scale-down';
             if (needsSave) {
                 pageCtx.save();
                 if (hasAncestorClip) {
@@ -5152,28 +4811,12 @@ export default class PdfPlugin extends Plugin {
                     pageCtx.rect(dx, dy, dw, dh);
                     pageCtx.clip();
                 }
-                if (slotFilter) {
-                    try {
-                        pageCtx.filter = slotFilter;
-                    } catch {
-                        // ignore unsupported canvas filter
-                    }
-                }
             }
 
             const srcW = srcCanvas.width;
             const srcH = srcCanvas.height;
             const srcAspect = srcW / srcH;
             const dstAspect = dw / dh;
-
-            const paintBgIfAny = (rx: number, ry: number, rw: number, rh: number) => {
-                if (!slotBgColor) return;
-                const prevFilter = pageCtx.filter;
-                if (prevFilter && prevFilter !== 'none') pageCtx.filter = 'none';
-                pageCtx.fillStyle = slotBgColor;
-                pageCtx.fillRect(rx, ry, rw, rh);
-                if (prevFilter && prevFilter !== 'none') pageCtx.filter = prevFilter;
-            };
 
             if (objectFit === 'contain') {
                 let drawW = dw;
@@ -5185,7 +4828,6 @@ export default class PdfPlugin extends Plugin {
                 }
                 const offX = Math.round((dw - drawW) * posX);
                 const offY = Math.round((dh - drawH) * posY);
-                paintBgIfAny(dx + offX, dy + offY, drawW, drawH);
                 pageCtx.drawImage(srcCanvas, 0, 0, srcW, srcH, dx + offX, dy + offY, drawW, drawH);
             } else if (objectFit === 'cover') {
                 let sx = 0;
@@ -5199,7 +4841,6 @@ export default class PdfPlugin extends Plugin {
                     sh = Math.max(1, srcW / dstAspect);
                     sy = (srcH - sh) * posY;
                 }
-                paintBgIfAny(dx, dy, dw, dh);
                 pageCtx.drawImage(srcCanvas, sx, sy, sw, sh, dx, dy, dw, dh);
             } else if (objectFit === 'none' || objectFit === 'scale-down') {
                 const natW = parseFloat(slot.getAttribute('data-pdf-nat-w') || '0') || srcW;
@@ -5217,10 +4858,8 @@ export default class PdfPlugin extends Plugin {
                 }
                 const offX = Math.round((dw - drawW) * posX);
                 const offY = Math.round((dh - drawH) * posY);
-                paintBgIfAny(dx + offX, dy + offY, drawW, drawH);
                 pageCtx.drawImage(srcCanvas, 0, 0, srcW, srcH, dx + offX, dy + offY, drawW, drawH);
             } else {
-                paintBgIfAny(dx, dy, dw, dh);
                 pageCtx.drawImage(srcCanvas, 0, 0, srcW, srcH, dx, dy, dw, dh);
             }
 
@@ -13023,39 +12662,6 @@ export default class PdfPlugin extends Plugin {
                             isLandscape: page.isLandscape,
                             contentScaleOverride: page.contentScaleOverride
                         });
-                    }
-                }
-
-                // Safety net: if any async plugin (e.g. carousel/gallery) mounted an <img> after the initial
-                // prepareImagesAndCaptions pass, slot it now before measuring and capturing this page.
-                if (pageSizer.querySelector('img')) {
-                    await this.prepareImagesAndCaptions(
-                        pageSizer,
-                        file.path,
-                        pageLayout.contentWidthPx,
-                        imageCanvasesById,
-                        perf.imageConcurrency,
-                        landscapeMaxW
-                    );
-                }
-
-                // Also repair any carousel image slot whose layout box collapsed while offscreen
-                const carouselSlots = pageSizer.querySelectorAll<HTMLElement>('.carousel-stage .pdf-image-slot[data-pdf-css-sized="1"]');
-                for (let csIdx = 0; csIdx < carouselSlots.length; csIdx++) {
-                    const cSlot = carouselSlots[csIdx];
-                    const cRect = cSlot.getBoundingClientRect();
-                    if (cRect.width <= 1 || cRect.height <= 1) {
-                        const stage = cSlot.closest<HTMLElement>('.carousel-stage');
-                        if (stage) {
-                            const sRect = stage.getBoundingClientRect();
-                            const sCs = window.getComputedStyle(stage);
-                            const innerW = Math.max(1, Math.round(sRect.width - (parseFloat(sCs.paddingLeft) || 0) - (parseFloat(sCs.paddingRight) || 0)));
-                            const innerH = Math.max(1, Math.round(sRect.height - (parseFloat(sCs.paddingTop) || 0) - (parseFloat(sCs.paddingBottom) || 0)));
-                            if (innerW > 1 && innerH > 1) {
-                                cSlot.style.width = `${innerW}px`;
-                                cSlot.style.height = `${innerH}px`;
-                            }
-                        }
                     }
                 }
 
