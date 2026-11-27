@@ -1,6 +1,6 @@
 ---
 name: obsidian-pdf-export
-description: Export Obsidian Markdown notes, folders (one PDF per note by default), or explicitly requested merged multi-note books to PDF with the "Markdown to PDF Mobile" plugin. Write export-job.json directly (UTF-8 no BOM, `Â°` escaped as \u00b0) and trigger `markdown-to-pdf-mobile:run-automation-job` through Obsidian CLI; never run obsidian-pdf-cli.mjs in this vault because the obsidian:// URI launch fails and node blocks for 600 s.
+description: Export Obsidian Markdown notes, folders (one PDF per note by default), or explicitly requested merged multi-note books to PDF with the "Markdown to PDF Mobile" plugin. Write export-job.json directly (UTF-8 no BOM, `Ã‚Â°` escaped as \u00b0) and trigger `markdown-to-pdf-mobile:run-automation-job` through Obsidian CLI; never run obsidian-pdf-cli.mjs in this vault because the obsidian:// URI launch fails and node blocks for 600 s.
 ---
 
 # Obsidian PDF Export Skill (job file + Obsidian CLI trigger)
@@ -11,7 +11,7 @@ Use this skill whenever the user asks to export Obsidian notes or folders to PDF
 
 This skill maintains its **own standalone settings file** located in the same folder as this `SKILL.md`:
 
-- **Settings file:** `./pdf-export-settings.json` (in this skill's directory â€” completely separate from Obsidian's `.obsidian/plugins/markdown-to-pdf-mobile/data.json` so CLI/agent exports never overwrite or depend on the user's interactive UI settings).
+- **Settings file:** `./pdf-export-settings.json` (in this skill's directory Ã¢â‚¬â€ completely separate from Obsidian's `.obsidian/plugins/markdown-to-pdf-mobile/data.json` so CLI/agent exports never overwrite or depend on the user's interactive UI settings).
 
 ### Required Rules for Every Agent Run
 1. **Always read `pdf-export-settings.json` BEFORE generating any PDF.**
@@ -26,7 +26,7 @@ This skill maintains its **own standalone settings file** located in the same fo
 
 ---
 
-## One-Command Export Script (RECOMMENDED â€” Use This First)
+## One-Command Export Script (RECOMMENDED Ã¢â‚¬â€ Use This First)
 
 On Windows, you can run the bundled `scripts/export.ps1` script in this skill's directory. It handles everything in one call: resolving the note/folder, enabling the plugin if needed, launching Obsidian detached (`Invoke-CimMethod`), merging any one-off `options` overrides in memory (without touching `pdf-export-settings.json`), writing `export-job.json` (UTF-8 without BOM, `\u00b0` escaped), triggering `& "C:\Program Files\Obsidian\Obsidian.exe" command id=markdown-to-pdf-mobile:run-automation-job`, and polling `export-result.json`:
 
@@ -38,7 +38,7 @@ powershell -ExecutionPolicy Bypass -File "scripts/export.ps1" -Target "Anatomia"
 
 ---
 
-## CRITICAL: Do NOT run `obsidian-pdf-cli.mjs` â€” write the job file yourself
+## CRITICAL: Do NOT run `obsidian-pdf-cli.mjs` Ã¢â‚¬â€ use `scripts/export.ps1` instead
 
 `obsidian-pdf-cli.mjs` does exactly two things: it serializes the job into `.obsidian/plugins/markdown-to-pdf-mobile/export-job.json`, and it launches `obsidian://mobile-pdf-export?...`. In this vault the URI does **nothing**, so the node process just polls until its timeout (600 s from settings) and returns nothing. Running it is pure dead time: a folder export that takes ~30 s of real work costs 2+ minutes of blocked shell.
 
@@ -68,16 +68,16 @@ powershell -ExecutionPolicy Bypass -File "scripts/export.ps1" -Target "Anatomia"
 
 Path to the job file: `<vault>/.obsidian/plugins/markdown-to-pdf-mobile/export-job.json`. Path to the result: `export-result.json` in the same folder.
 
-### The `Â°` corruption trap (this is what breaks exports, not the plugin)
+### The `Ã‚Â°` corruption trap (this is what breaks exports, not the plugin)
 
-Folder names such as `3Â°ANNO` are the single most common cause of a silently dead job: the job is written, the trigger runs, and the plugin exports nothing because `folderPath` points at a folder that does not exist.
+Folder names such as `3Ã‚Â°ANNO` are the single most common cause of a silently dead job: the job is written, the trigger runs, and the plugin exports nothing because `folderPath` points at a folder that does not exist.
 
-How it happens: building the string in PowerShell and passing it through a shell command mangles `Â°` (U+00B0) into `Ã‚Â°` (U+00C2 U+00B0) â€” visible in UTF-8 bytes as `C3-82-C2-B0` instead of `C3-B0`. The job file then looks fine in the editor and fails at runtime.
+How it happens: building the string in PowerShell and passing it through a shell command mangles `Ã‚Â°` (U+00B0) into `Ãƒâ€šÃ‚Â°` (U+00C2 U+00B0) Ã¢â‚¬â€ visible in UTF-8 bytes as `C3-82-C2-B0` instead of `C3-B0`. The job file then looks fine in the editor and fails at runtime.
 
 Rules:
 
 1. **Never type the accented folder name by hand.** Resolve it from the filesystem: `Get-ChildItem -LiteralPath $parent -Directory | Where-Object { $_.Name -like '3*ANNO' }`.
-2. **Never let the `Â°` reach the JSON as a literal character.** In a `.ps1` script, build the job JSON as ASCII and escape the character: `\u00b0`. The simplest reliable pattern is to write the JSON text, then replace the character only inside the path substring:
+2. **Never let the `Ã‚Â°` reach the JSON as a literal character.** In a `.ps1` script, build the job JSON as ASCII and escape the character: `\u00b0`. The simplest reliable pattern is to write the JSON text, then replace the character only inside the path substring:
    `$i = $json.IndexOf('folderPath'); $json = $json.Substring(0, $i) + $json.Substring($i).Replace([string][char]0x00B0, '\u00b0')`
 3. **Verify with bytes, not with eyes.** `[System.BitConverter]::ToString([System.Text.Encoding]::UTF8.GetBytes($path))` must contain `C3-B0`. `C3-82-C2-B0` means double encoding; `3F` means the character was lost entirely.
 4. **Verify with `-ceq` before triggering,** comparing the parsed `folderPath` against the string rebuilt from `Get-ChildItem`. A `-like` or visual check passes on corrupted paths.
@@ -86,12 +86,12 @@ Rules:
 
 ### Diagnosing a job that never completes
 
-Check in this order, once each â€” do not re-run the same command:
+Check in this order, once each Ã¢â‚¬â€ do not re-run the same command:
 
-1. `export-job.json` `jobId` is your job and the file mtime is recent â†’ the trigger never fired, re-trigger with Obsidian CLI.
-2. `export-result.json` `jobId` is your job and `status` is `running` â†’ it is working, poll again after ~20 s.
-3. `export-result.json` still shows the previous job â†’ the plugin rejected the job; re-read `folderPath`/`notePath` bytes and re-check the BOM.
-4. `status: completed` but no PDFs on disk â†’ check `tasks[].failedFiles` and `tasks[].error`; usually a bad path or an empty folder.
+1. `export-job.json` `jobId` is your job and the file mtime is recent Ã¢â€ â€™ the trigger never fired, re-trigger with Obsidian CLI.
+2. `export-result.json` `jobId` is your job and `status` is `running` Ã¢â€ â€™ it is working, poll again after ~20 s.
+3. `export-result.json` still shows the previous job Ã¢â€ â€™ the plugin rejected the job; re-read `folderPath`/`notePath` bytes and re-check the BOM.
+4. `status: completed` but no PDFs on disk Ã¢â€ â€™ check `tasks[].failedFiles` and `tasks[].error`; usually a bad path or an empty folder.
 
 ---
 
@@ -100,7 +100,7 @@ Check in this order, once each â€” do not re-run the same command:
 ### Recommended Pattern: Write the Job JSON Yourself, Then Trigger
 
 1. Read `pdf-export-settings.json`.
-2. Resolve every path from the filesystem (never retype accented names) and build the job JSON text with the jobId, `options` and `tasks` described in the CRITICAL section. Escape `Â°` as `\u00b0` inside paths.
+2. Resolve every path from the filesystem (never retype accented names) and build the job JSON text with the jobId, `options` and `tasks` described in the CRITICAL section. Escape `Ã‚Â°` as `\u00b0` inside paths.
 3. Write it to `<vault>/.obsidian/plugins/markdown-to-pdf-mobile/export-job.json` as UTF-8 without BOM.
 4. **Verify before triggering:** parse the file back, assert the path with `-ceq`, `Test-Path` it, and confirm no BOM.
 5. **Trigger and verify** (mandatory, see the CRITICAL section above):
@@ -153,7 +153,7 @@ An example job object (same shape as the file you write):
 
 ### When to use the CLI anyway
 
-Only if writing the file by hand is impossible (no filesystem access). Then pass `--no-wait` so node returns immediately after writing the job, and still do steps 4â€“6 above. Never run the CLI in its default waiting mode in this vault: it blocks for the full `timeoutSeconds` (600 s) and returns nothing useful.
+Only if writing the file by hand is impossible (no filesystem access). Then pass `--no-wait` so node returns immediately after writing the job, and still do steps 4Ã¢â‚¬â€œ6 above. Never run the CLI in its default waiting mode in this vault: it blocks for the full `timeoutSeconds` (600 s) and returns nothing useful.
 
 ### Folder export default (STRICT)
 
@@ -163,7 +163,7 @@ For `"type": "folder"` always emit `"mode": "separate"`. Use `"merged"` or a `"m
 
 ## Ready-to-run script (PowerShell 5.1, ASCII only)
 
-Save as `.ps1` outside the vault or in `99 - PLUGINS/Copilot/outputs/` (delete afterwards). It resolves the folder from disk, escapes `Â°`, writes the job without BOM, and verifies it before printing `READY`. Run the trigger and the polling separately after it prints `READY`.
+Save as `.ps1` outside the vault or in `99 - PLUGINS/Copilot/outputs/` (delete afterwards). It resolves the folder from disk, escapes `Ã‚Â°`, writes the job without BOM, and verifies it before printing `READY`. Run the trigger and the polling separately after it prints `READY`.
 
 ```powershell
 param([string]$Vault, [string]$FolderRel, [string]$OutDir, [string]$JobId)
@@ -202,7 +202,7 @@ if (-not (Test-Path -LiteralPath (Join-Path $Vault ($check.tasks[0].folderPath -
 Write-Output "READY $($check.jobId)"
 ```
 
-Call it with the folder path rebuilt from `Get-ChildItem` (e.g. `3*ANNO`) so the `Â°` never passes through a hand-typed literal.
+Call it with the folder path rebuilt from `Get-ChildItem` (e.g. `3*ANNO`) so the `Ã‚Â°` never passes through a hand-typed literal.
 
 ---
 
@@ -229,8 +229,8 @@ These exact keys are honored by the plugin's `applyTemporaryAutomationOptions()`
 | `pageOrientation` | `string` | `"portrait"` \| `"landscape"` | `"portrait"` | `--orientation` |
 | `autoLandscapeWidePages` | `boolean` | `true` \| `false` (applies in Portrait mode) | `true` | `--auto-landscape` |
 | `marginPreset` | `string` | `"narrow"` (10mm) \| `"normal"` (15mm) \| `"wide"` (25mm) \| `"custom"` | `"normal"` | *(via `--job-file` only)* |
-| `customMarginMm` | `number` | Integer `5`â€“`45` (used when `marginPreset: "custom"`) | `15` | *(via `--job-file` only)* |
-| `contentScale` | `number` | `80`â€“`120` in steps of `5` (`80, 85, 90, 95, 100, 105, 110, 115, 120`) | `100` | `--scale` |
+| `customMarginMm` | `number` | Integer `5`Ã¢â‚¬â€œ`45` (used when `marginPreset: "custom"`) | `15` | *(via `--job-file` only)* |
+| `contentScale` | `number` | `80`Ã¢â‚¬â€œ`120` in steps of `5` (`80, 85, 90, 95, 100, 105, 110, 115, 120`) | `100` | `--scale` |
 
 ### 2. Appearance & Typography
 | Parameter | Type | Allowed Values / Range | Default | Direct CLI Flag |
@@ -262,7 +262,7 @@ These exact keys are honored by the plugin's `applyTemporaryAutomationOptions()`
 | :--- | :--- | :--- | :--- | :--- |
 | `includeBookmarks` | `boolean` | `true` \| `false` (PDF viewer Document Outline) | `true` | `--bookmarks` |
 | `includeTocPage` | `boolean` | `true` \| `false` (clickable Index rendered on Page 1) | `false` | `--toc` |
-| `bookmarkHeadingLevels` | `number[]` | Subset of `[1, 2, 3, 4, 5, 6]` (H1â€“H6) | `[1,2,3,4,5,6]` | *(via `--job-file` only)* |
+| `bookmarkHeadingLevels` | `number[]` | Subset of `[1, 2, 3, 4, 5, 6]` (H1Ã¢â‚¬â€œH6) | `[1,2,3,4,5,6]` | *(via `--job-file` only)* |
 | `enableClickableLinks` | `boolean` | `true` \| `false` (external URLs, heading/footnote anchors, cross-note links) | `true` | *(via `--job-file` only)* |
 
 ### 6. Output & Compression
@@ -274,7 +274,7 @@ These exact keys are honored by the plugin's `applyTemporaryAutomationOptions()`
 
 ## Direct CLI Flags Quick Reference
 
-Kept for reference only â€” in this vault write the job file directly instead (see CRITICAL above). Consult `pdf-export-settings.json` first and prefer the job file whenever any option differs from plugin defaults.
+Kept for reference only Ã¢â‚¬â€ in this vault write the job file directly instead (see CRITICAL above). Consult `pdf-export-settings.json` first and prefer the job file whenever any option differs from plugin defaults.
 
 - **Target:** `--vault <dir>`, `--note <rel-path>`, `--folder <rel-path>`, `--merged`, `--merge <n1,n2,...>`, `--job-file <json-path>`
 - **Output:** `--out <rel-dir>`, `--name <filename-without-pdf>`, `--open`
