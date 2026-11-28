@@ -28,7 +28,7 @@ An Obsidian plugin designed to export individual notes or entire folders of Mark
     - Optimizes embedded raster images in memory via WebP at 99% quality (automatically skipping images that are already `.webp` and keeping the original whenever WebP would be larger).
     - Because the PDF standard (ISO 32000) natively embeds `/FlateDecode` (PNG) and `/DCTDecode` (JPEG) rather than WebP, every rendered page canvas is automatically encoded with the smallest sharp PDF-native format: **100% lossless 8-bit Indexed-Palette PNG** (`colorType = 3`, 1 byte/pixel, ~2×–3× smaller with zero blur) for text/heading/table pages with ≤256 colors, and **high-fidelity 93% JPEG at 2× HiDPI** whenever it yields substantial savings on photos, Mermaid diagrams, callouts, or colorful/emoji pages—guaranteed never larger than standard 24-bit PNG while preserving the full selectable text layer.
 - **CLI & AI Agent Automation:**
-  - Trigger single-note, recursive folder (separate or merged), and custom multi-note merge exports from scripts, terminals, Termux on Android, iOS Shortcuts, or AI agents via the `obsidian://mobile-pdf-export` URI handler, queued `export-job.json` files (with incremental `export-result.json` checkpointing and automatic resume), and the included zero-dependency `obsidian-pdf-cli.mjs` CLI wrapper.
+  - Trigger single-note, recursive folder (separate or merged), and custom multi-note merge exports from scripts, terminals, or AI agents via the `obsidian://mobile-pdf-export` URI handler, queued `export-job.json` files (with incremental `export-result.json` checkpointing and automatic resume), the cross-platform Python agent skill (`scripts/export.py`), and the included zero-dependency `obsidian-pdf-cli.mjs` CLI wrapper.
 - **Rich Markdown Support:**
   - **Headings, Callouts & Blockquotes:** Preserves Obsidian Reading Mode styling, themes, CSS snippets, and `cssclasses`.
   - **Images, Carousels & Captions:** Supports embedded images (`![[image.png]]`) with custom widths, preserves captions rendered by your active theme, CSS snippets, or caption plugins, cleanly exports community image carousels (hiding interactive left/right navigation arrows while preserving bottom slide indicator pills), and automatically scales very tall images proportionally (down to a 45% legibility floor) to fit cleanly on a single page instead of slicing them in half.
@@ -141,11 +141,12 @@ You do not need to wait for an export or preview to finish before starting the n
 - Sidebar previews participate in the same queue: if a preview is currently generating, new exports wait for it to complete (and clicking **Generate** on that same note immediately reuses the freshly cached PDF right after); if an export is running and a sidebar preview is triggered, the preview shows `Queued (#N)...` and renders automatically when its turn arrives (newer preview refreshes replace any stale waiting preview in place so you never wait on outdated notes).
 - Click **Stop** on the active notice to stop only the current export and continue with the next queued job, or click **Clear** in the notice's queue row (or run **Clear queued PDF exports** from the Command Palette) to clear waiting jobs.
 
-### CLI & AI Agent Automation (PC, Android Termux & iOS Shortcuts)
+### CLI & AI Agent Automation (Desktop)
 Automate single-note, recursive folder, and multi-note merged PDF exports from scripts, terminals, or AI coding agents without touching the UI:
 
 1. **Zero-Dependency CLI Wrapper (`obsidian-pdf-cli.mjs`):**
-   Works on Linux, macOS, Windows, and Android **Termux** (Node.js 18+). It writes `.obsidian/plugins/markdown-to-pdf-mobile/export-job.json`, triggers `obsidian://mobile-pdf-export`, polls `export-result.json`, and prints human-readable or `--json` output:
+   Works on Linux, macOS, and Windows (Node.js 18+). It writes `.obsidian/plugins/markdown-to-pdf-mobile/export-job.json`, triggers `obsidian://mobile-pdf-export`, polls `export-result.json`, and prints human-readable or `--json` output:
+   *(Note for Windows users: when invoking the CLI or URI launcher, a terminal window might pop up for an instant to dispatch the command to Obsidian—this is completely normal behavior and by design, do not worry).*
    ```bash
    # Single note
    node obsidian-pdf-cli.mjs --vault "/path/to/Vault" --note "Biology/Cells.md" --out "PDFs"
@@ -160,7 +161,7 @@ Automate single-note, recursive folder, and multi-note merged PDF exports from s
    node obsidian-pdf-cli.mjs --vault "/path/to/Vault" --merge "Intro.md,Ch1.md,Ch2.md" --name "Course" --json
    ```
 2. **Direct Obsidian URI (`obsidian://mobile-pdf-export`):**
-   Works from desktop terminals (`xdg-open` / `open` / `start`), Android Termux (`termux-open-url` / `am start`), and **iOS Shortcuts** (*Open URL* action):
+   Works from desktop terminals (`xdg-open` / `open` / `start`):
    ```text
    obsidian://mobile-pdf-export?vault=MyVault&note=Biology/Cells.md&out=PDFs&theme=dark&frontmatter=true&header=true
    obsidian://mobile-pdf-export?vault=MyVault&folder=Biology&mode=merged&name=BiologyBook&out=PDFs
@@ -173,9 +174,11 @@ Automate single-note, recursive folder, and multi-note merged PDF exports from s
    - Automated exports show the exact same live per-note, per-page, and saved/merged progress statistics as interactive exports, and checkpoint progress incrementally to `export-result.json` after every task.
    - Once an automated job file finishes all queued tasks cleanly, the plugin automatically deletes `export-job.json` (while preserving `export-result.json` for CLI/agent polling) so running queued jobs again or restarting Obsidian will never accidentally re-run a completed export. If a job is manually cancelled mid-run, `export-job.json` is kept so it can be resumed later.
    - **Mobile foreground requirement (Android & iOS):** Obsidian must stay open in the foreground (with the screen awake) until automated batch jobs finish, as mobile operating systems suspend background WebViews. On Android, you can use **Split Screen** or **Floating Window** to keep Obsidian in the foreground while using other apps (and setting battery usage to **Unrestricted** helps prevent OS kills during long batches).
-4. **AI Agent Skill (`skills/obsidian-pdf-export/`):**
-   - Includes `skills/obsidian-pdf-export/SKILL.md` and a standalone `skills/obsidian-pdf-export/pdf-export-settings.json` configuration file kept completely separate from the plugin's `data.json`.
-   - Agents read `pdf-export-settings.json` before every export (applying all 24 supported options via `--job-file`) and update that file whenever you ask to change default CLI export preferences.
+4. **Cross-Platform AI Agent Skill (`skills/obsidian-pdf-export/`):**
+   - **One-Command Export Dispatcher (`export.py`):** AI agents (Antigravity, Claude Code, Codex, OpenCode) simply invoke `python export.py -t "<note or folder name>"`. The script automatically identifies the host operating system (`sys.platform`), delegating execution to `export.ps1` on Windows or `export.sh` on Linux and macOS.
+   - **Zero Pre-Search Overhead:** The script handles vault-wide note/folder resolution, Unicode escaping, Obsidian background execution check, and job file lifecycle internally so agents don't waste context turns searching the filesystem.
+   - **Non-Intrusive Terminal Dispatch (Windows):** On Windows, a brief command window may flash for an instant while dispatching the URI protocol to Obsidian; this is expected behavior by design.
+   - **Custom Options & `SUPPLEMENT.md`:** Standard exports run with zero extra reads. If the user asks for specific custom options (theme, orientation, margins, custom fonts, index/TOC, headers/footnotes) or wants to update persistent defaults, the agent reads `SUPPLEMENT.md` to pass JSON option overrides (`-o`) directly to the dispatcher without modifying permanent settings.
 
 ### Feature Stress-Test Note (`PDF-Export-Test-Suite.md`)
 Copy `PDF-Export-Test-Suite.md` into your vault to verify frontmatter + immediate callout rendering, title spacing, H1–H6 hierarchy, numbered lists with indented continuation lines & unindented column-0 text, compact/wide/ultra-wide/multi-page tables, code blocks, LaTeX math, Mermaid diagrams, large & panoramic images, manual page breaks, links/footnotes, and Unicode/BiDi/emoji text selection in a single export.

@@ -32,8 +32,14 @@ if (Test-Path -LiteralPath $candidate) {
         throw "No note or folder matching '$Target' found in $vault"
     }
     if ($matches.Count -gt 1) {
-        $exact = $matches | Where-Object { $_.BaseName -ieq $Target -or $_.Name -ieq $Target }
-        if ($exact.Count -ge 1) { $item = $exact[0] } else { $item = $matches[0] }
+        $exact = @($matches | Where-Object { $_.BaseName -ieq $Target -or $_.Name -ieq $Target })
+        if ($exact.Count -eq 1) {
+            $item = $exact[0]
+        } else {
+            Write-Output "MULTIPLE_MATCHES:"
+            $matches | ForEach-Object { Write-Output ("- " + $_.FullName.Substring($vault.Length + 1).Replace('\', '/')) }
+            exit 2
+        }
     } else {
         $item = $matches[0]
     }
@@ -100,17 +106,31 @@ $resultPath = "$pluginDir\export-result.json"
 
 [System.IO.File]::WriteAllText($jobPath, $json, (New-Object System.Text.UTF8Encoding($false)))
 
-# Trigger Obsidian CLI
-$prevEAP = $ErrorActionPreference
-$ErrorActionPreference = "Continue"
-$null = (& "C:\Program Files\Obsidian\Obsidian.exe" command id=markdown-to-pdf-mobile:run-automation-job 2>&1)
-$ErrorActionPreference = $prevEAP
+# Trigger Obsidian via URI
+$vaultParam = if ($settings.cli.vaultName) { $settings.cli.vaultName } else { (Split-Path -Leaf $vault) }
+$uri = "obsidian://mobile-pdf-export?vault=$([uri]::EscapeDataString($vaultParam))&job=default"
+$null = (Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{CommandLine="cmd.exe /c start `"`" `"$uri`""})
 
-# Poll export-result.json
+# Poll for completion: monitor export-job.json deletion and export-result.json terminal status
 $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
 while ((Get-Date) -lt $deadline) {
-    Start-Sleep -Seconds 5
-    if (Test-Path -LiteralPath $resultPath) {
+    Start-Sleep -Seconds 1
+    $jobExists = Test-Path -LiteralPath $jobPath
+
+    if (-not $jobExists) {
+        if (Test-Path -LiteralPath $resultPath) {
+            try {
+                $res = Get-Content -LiteralPath $resultPath -Raw | ConvertFrom-Json
+                if ($res.jobId -eq $jobId) {
+                    $res | ConvertTo-Json -Depth 10
+                    exit 0
+                }
+            } catch {}
+        }
+        [PSCustomObject]@{ jobId = $jobId; status = "completed" } | ConvertTo-Json -Depth 10
+        exit 0
+    }
+    elseif (Test-Path -LiteralPath $resultPath) {
         try {
             $res = Get-Content -LiteralPath $resultPath -Raw | ConvertFrom-Json
             if ($res.jobId -eq $jobId -and $res.status -in @("completed", "partial", "failed")) {
